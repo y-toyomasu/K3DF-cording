@@ -354,3 +354,63 @@ Capabilityに応じてToolを段階公開する案は、`F-00003` と `F-00012` 
 ### Verification
 
 T-00006のTool Registryと基本HTTP Tool、およびT-00007のStrategy Briefは実装済みである。T-00007では、BriefがRegistry、Target、Policy、Budgetを変更せず、実装済みToolの完全Catalog提示を維持することをAgent 59件とDashboard 2件のTestで確認した。CTF、Credential、TCP、SSH、Shell、Filesystem、Database、Flag、K3DF統合は未実装であり、各将来Taskで本Decisionの境界を検証する。
+
+## D-00017: Generic capability depth ontology and separate flag objectives
+
+- Status: Accepted
+- Date: 2026-08-27
+- Source: `R-00013`, `R-00019`, `R-00025`, `R-00030`, `R-00034`, `R-00035`, `R-00039`
+
+### Context
+
+現在のK3DFは推定Capabilityを平坦な一覧として保持しており、侵入の深さ、Capability間の関係、Evidenceとの対応、およびFlagごとの達成状況を一貫して表示できない。将来のToolやChallenge機能が未実装でも、利用者が全体像と現在位置を確認できる表示が必要である。
+
+### Decision
+
+Capability Graphを、特定Challengeの固定攻略経路ではない汎用的なCapability Ontologyとして定義する。Graph全体を初期状態から表示し、各Nodeは`not_observed`、`suspected`、`confirmed`の状態を持つ。
+
+侵入深度は最も深いCapabilityのEvidence状態から派生させ、正規状態として別管理しない。Confirmed DepthとPossible Depthを区別する。深度帯は分類であり、全Nodeの順番どおりの達成を要求しない。深いCapabilityのEvidenceを受けても、前段Nodeを自動的に`confirmed`へ変更しない。
+
+| Depth | 表示名 | 意味 |
+| ---: | --- | --- |
+| 0 | No Confirmed Intrusion | 確認済みCapabilityがない |
+| 1 | Public Endpoint Reached | Challenge公開Endpointへの到達を観測 |
+| 2 | Service / Protocol Discovered | ServiceまたはProtocolを発見 |
+| 3 | Exploit Attempt Observed | Exploit試行を観測 |
+| 4 | Exploit Success Confirmed | 脆弱性利用の成功を確認 |
+| 5 | Application Data Access | Application Dataへのアクセスを確認 |
+| 6 | Credential Acquired | Credential取得を観測 |
+| 7 | Challenge Session Established | Challenge内Session確立を確認 |
+| 8 | Command Execution / Filesystem Read | Command実行またはChallenge filesystem読取りを確認 |
+| 9 | Internal Service Reached | Challenge Internal Serviceへの到達を確認 |
+| 10 | Challenge Database Access | Challenge Databaseへのアクセスを確認 |
+
+Flag 1、Flag 2、Flag 3は侵入深度とは別のObjectiveとして扱い、取得順を強制しない。各Flagは取得状態`not_observed`、`suspected`、`confirmed`と、提出状態`not_submitted`、`detected`、`accepted`、`rejected`を持つ。Flag値、配置場所、Hint、Credentialおよび正解経路はCapability Graph、Dashboard、ログへ表示しない。
+
+Capability Graphは観測モデルであり、Toolの公開、実行許可、LOCKED状態または攻略順の制御には使用しない。
+
+### Rationale
+
+未実装の深い侵入段階も初期状態から可視化しつつ、Evidenceに基づくDefender EstimateとCTF Ground Truthを混同せず、将来のEvidence Producerを安全に追加できるようにする。
+
+### Alternatives considered
+
+- 現在Evidenceを生成できる浅いDepthだけを表示する案
+- 特定Challengeの固定攻略経路をGraphとして事前登録する案
+- Flag取得を侵入深度へ組み込む案
+- Kimiの推測だけでCapabilityを`confirmed`にする案
+
+### Consequences
+
+- 将来のCapability Nodeも初期状態から`not_observed`として表示される。
+- 将来Toolは、新しいGraphを作り直すのではなく正規化EvidenceのProducerを追加する。
+- Dashboard表示はDefender Estimateであり、CTF Ground Truthとは区別する。
+- Flagの正式な受理結果は将来のCTF Refereeが所有する。
+- KimiによるCapability提案はEvidenceを参照した`SUSPECTED`相当までとし、`CONFIRMED`はシステムがEvidenceから導出する。
+- 実装と検証は`T-00014`で行う。
+
+### Verification
+
+`T-00014`で、状態モデル、Evidence導出、永続化、Dashboard、Flag 1〜3表示、互換読込みおよびGUI Reviewを確認する。
+
+`ARCHITECTURE.md`には、このTaskの検証前に未実装構成を現行事実として追加しない。
