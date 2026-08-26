@@ -34,4 +34,53 @@
 
 ## Unknown or not specified
 
-この文書は既存READMEと構成ファイルで確認できる事実のみを記録する。優先順位、利用者像、ロードマップ、機能要件の詳細は、このワークスペースからは確認できないため未定義とする。
+既存READMEと構成ファイルから確認できる現行機能と、この文書の「Approved product requirements」に記録したProduct Owner承認済みの将来要件は区別する。次の事項は未決定であり、本書では確定しない。
+
+- Flag 2からFlag 3へのHint
+- 具体的なChallenge内容
+- デモの時間制限
+- 探索停滞時のHint方式
+
+## Approved product requirements
+
+以下はProduct Ownerが承認した将来のCTFデモ要件であり、現行実装済み機能を表すものではない。
+
+- `R-00008`: 主目的を教育・展示向けのCTFデモとする。
+- `R-00009`: 主な利用者を、Dockerと基本的なWeb技術を扱えるセキュリティ学習者・開発者とする。
+- `R-00010`: 標準構成を、private LANで接続した2台のRaspberry PiによるK3AT/K3DF分離構成とする。各Piでは都度Git pullして実行・テストする。
+- `R-00011`: 攻撃側の目的を、Flagの発見と、より深いCapabilityおよび内部Assetへの到達とする。
+- `R-00012`: SQL Injectionだけに限定せず、複数の脆弱性および接続方式を扱える構成へ拡張する。
+- `R-00013`: 防御側は、攻撃者がどこまで侵入したかをEvidenceに基づいて推定・表示する。
+- `R-00014`: K3ATは固定された攻撃シナリオではなく、Goal、Evidence、現在状態からKimi K3が探索シナリオを動的生成する。
+- `R-00015`: Kimi K3はStrategy Briefを生成・更新し、仮説、未知点、失敗した方向、次の調査優先度を管理する。
+- `R-00016`: Kimi K3はSystem Policy、Target Boundary、Tool権限、Action Budgetを変更できない。
+- `R-00017`: Challengeの想定経路、Flag位置、Capability Graphの正解をK3ATへ事前提供しない。
+- `R-00018`: K3ATはEvidenceに基づき、脆弱性、接続方式、侵入経路を動的に選択できる。
+- `R-00019`: Attacker Belief、Defender Estimate、CTF Ground Truthを独立した状態として扱う。
+- `R-00020`: K3ATは利用可能なTool Catalogを構造化してKimi K3へ提示する。
+- `R-00021`: Kimi K3は固定Scenarioではなく、Toolと引数をEvidenceに基づいて選択する。
+- `R-00022`: 各ToolはTool Specification、Policy Validator、Executor、Evidence Normalizerを持つ。
+- `R-00023`: Toolの種類、実行対象、安全境界、Budgetはシステム側で定義し、Kimi K3は変更できない。
+- `R-00025`: Toolの実行結果を共通Evidence形式へ正規化し、Capability Graphへ反映する。
+- `R-00026`: 発見したCredentialはCredential Storeで管理し、Tool呼出しでは参照IDを使用できる。
+- `R-00027`: Toolの実行先を、envで登録されたRaspberry Pi上のChallenge公開Endpoint、および許可済みSessionを経由して到達するChallenge Internal Serviceへ限定する。Raspberry PiのHost OS Service、SSHなどのManagement Serviceおよび管理Port、Management Network、Challenge外のLAN、Host filesystem、Docker socketを対象外とする。
+- `R-00028`: Toolの接続先はK3ATコンテナのenv設定で静的に定義し、Run中は変更できない。
+- `R-00029`: Toolはenvで許可されたHost、Origin、PortまたはPort Rangeだけを対象にでき、任意の外部Targetへ接続できない。
+- `R-00030`: Kimi K3へ、3個の一意なFlag取得が勝利条件であることとFlag形式を提示する。
+- `R-00031`: Flagの値、配置場所および正解経路はK3ATへ事前提供しない。
+- `R-00032`: Flag 1にはFlag 2の探索につながるHintを含める。
+- `R-00033`: FlagをサービスおよびContainer単位で分離し、一つのContainerまたはenvへ集約しない。
+- `R-00034`: CTF RefereeがFlagを検証し、3個の一意なFlagを受理した時点で勝利とする。
+- `R-00035`: Flagは順不同で提出可能とし、Hintは探索支援であって経路強制には使用しない。
+- `R-00036`: 許可されたToolはRun開始時からすべてKimi K3へ提示する。
+- `R-00037`: Toolの公開および実行可否をCapability Graphの進行状態に依存させない。
+- `R-00038`: Tool実行条件はTarget、Credential、Session、Protocol、Budgetなどの具体的な実行条件で検証する。
+- `R-00039`: CapabilityはTool権限ではなく、実行結果のEvidenceから導出される観測結果として扱う。
+- `R-00040`: Kimi K3には内部Service構成を事前提供せず、envで許可された範囲内を探索させる。
+- `R-00041`: K3AT Dashboardは、Strategy BriefをJSON構造の解読を必要としない、人間が読みやすい構造化表示で提供する。5分類、revision、更新時刻、Evidence IDおよびTool名の追跡可能性を維持し、読み取り専用性と秘密情報非表示を維持する。
+
+## Feedback records
+
+- `F-00003`: Capabilityに応じてToolをLOCKEDまたはAVAILABLEにする方式は、ゲーム的で現実の環境に即していない。Toolは最初から提示し、利用結果は具体的なCredential、Session、接続状態および安全Policyによって決まるべきである。
+- `F-00012`: K3ATのTool拡張ロードマップを正式方針として採用する。実装済みToolはRun開始時からすべてKimi K3へ提示し、実装順序を攻撃経路またはTool解放順序として扱わない。Tool実行可否はTarget、Protocol、Credential、Session、Budgetなどの具体的条件で決定する。Raspberry PiのHost OS、Management SSH、Management Network、Host filesystemおよびDocker socketは対象にしない。
+- `F-00013`: Strategy Briefが長いJSONとして表示され、人間が内容や優先順位を把握しにくい。機能自体は受入れるが、可読性改善を独立Taskとして実施する。

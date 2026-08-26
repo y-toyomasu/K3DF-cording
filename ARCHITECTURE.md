@@ -1,6 +1,6 @@
 # Architecture
 
-## Workspace structure
+## A-00001: Workspace structure
 
 `K3DF-local` 直下には、相互に独立したGitリポジトリが3つ存在する。ワークスペース全体を統括する既存のGitリポジトリは確認できない。
 
@@ -11,7 +11,7 @@ K3DF-local/
 └── K3Defnder-K3Atacker-infra/     Raspberry Pi setup scripts
 ```
 
-## K3DF
+## A-00002: K3DF service structure
 
 K3DFのCompose構成では、次のサービスが定義されている。
 
@@ -23,27 +23,57 @@ K3DFのCompose構成では、次のサービスが定義されている。
 | `dashboard` | Webのヘルスチェック、Nginxログ、Defenderが保存した状態を読み取り専用で表示する。ホストの8888番ポートを公開する。 |
 | `scanner` | Composeサービスではなく、許可されたローカル環境に対して実行するPythonスクリプト。 |
 
-確認できるデータ境界は次のとおり。
+## A-00003: K3DF data boundaries
 
 - `web` は `data/` を利用する。
 - `nginx` は `logs/nginx/` へログを保存する。
 - `defender` はNginxログを読み取り専用で読み、`state/` に状態・イベントを保存する。
 - `dashboard` はNginxログと `state/` を読み取り専用で参照し、DefenderのPythonモジュールをimportしない。
 
-## K3AT
+## A-00004: K3AT service structure
 
 K3ATのCompose構成には、次がある。
 
 | Component | Confirmed responsibility |
 | --- | --- |
 | `k3-agent` | Kimi K3によるシナリオ生成、ローカルポリシー検証、許可済みHTTPリクエスト、状態保存を行う。 |
-| `dashboard` | `k3-agent` と共有する状態ボリュームを読み取り専用で表示する。ホストの `127.0.0.1:8889` を公開する。 |
+| `dashboard` | `k3-agent` と共有する状態ボリュームを読み取り専用で表示する。ホストの `0.0.0.0:8888` を公開し、コンテナ内Port 8888へ転送する。 |
 
 `k3-agent` は `latest.json` の現在スナップショットと `events.ndjson` の追記イベントを共有ボリュームへ保存する。対象は `K3DF_BASE_URL` で指定された正確なscheme・host・port境界に制限される。
 
-## Infrastructure setup
+DashboardはK3ATホストのprivate IPを通じて同一private LAN上の別端末から閲覧できる。共有状態を読み取り専用で表示するだけであり、調査の開始、停止、制御または状態の書込みを行わない。
 
-`K3Defnder-K3Atacker-infra/setup/` には、初回起動、再起動後処理、システム、Git、Dockerのセットアップスクリプトがある。READMEでRaspbian GNU/Linux 12 (Bookworm) とRaspberry Piを前提としている。
+## A-00005: K3AT target and policy boundaries
+
+`k3-agent` はProcess開始時に `K3AT_AUTHORIZED_TARGETS` を読み込み、scheme・hostname・portを正規化した不変のTarget Registryを生成する。HTTP/HTTPSの未指定Portは80/443として扱い、重複Endpointは一件へ正規化する。設定が未指定または空の場合は、`K3DF_BASE_URL` を唯一の許可HTTP Endpointとして使用する。設定されている場合は、`K3DF_BASE_URL` がRegistryに含まれなければNetwork Request前にConfiguration Errorとして終了する。
+
+生成済みTarget PolicyはLocal PolicyとHTTP Executorで共有し、Run中にenvを再読込しない。HTTP Requestは `K3DF_BASE_URL` 配下の `/` から始まるChallenge Pathへ限定され、別scheme・host・port・Originおよびprotocol-relative URLを拒否する。Registry定義はuserinfo、query、fragment、空でないpathを拒否する。
+
+envへ明示したRaspberry PiのIPまたはhostname上のChallenge公開Endpointは許可できるが、未登録のHost OS Service、Management Port、別LAN Addressおよび別Originは許可しない。Registryは明示Portを持つ将来ProtocolのEndpointも保持できるが、現行ExecutorはHTTP(S) Requestだけを実装しており、SSH等のExecutorは存在しない。
+
+## A-00007: K3AT Tool Registry
+
+`k3-agent` はProcess開始時に不変のTool Registryを生成する。各Tool定義はTool Specification、Policy Validator、Executor、Evidence Normalizerを持ち、重複Tool名を拒否する。現行Registryで実装済みのToolは、`method` と `/` から始まる相対Challenge `path` を引数に持つ `http.request` だけである。SSH、Database、Filesystemその他のTool Executorは実装していない。
+
+Registryの完全なTool Catalogと引数SchemaはRun開始時からPlannerへ提示される。PlannerとFallback Plannerは、固定ScenarioではなくGoal、Evidence、現在状態から登録済みTool名と引数を選ぶ。未知Tool、無効引数、境界外TargetはNetwork処理前に拒否される。
+
+Tool実行Policyは、A-00005の同一Target Policy、`K3AT_AUTHORIZED_HTTP_METHODS`、およびProcess開始時に正の整数として固定する `K3AT_MAX_TOOL_CALLS_PER_RUN` による具体的条件を使用する。Budget defaultは30であり、上限到達後はExecutorへ進まない。Capability、ATT&CK Tactic、自己申告Risk、発見段階および旧Authorization集合は非権限Metadataであり、Toolの提示または実行Gateに使用しない。
+
+実行済み・Blocked Invocationは、Evidence ID、Invocation ID、Tool名、Timestamp、Action要約、Outcome、HTTP StatusまたはError、bounded result metadataを持つ共通Evidenceとして区別してStateへ保存する。Evidence NormalizerはCapability、FlagまたはCredentialを推測せず、Capability Graphは実行済みHTTP ResponseのEvidenceから導出される観測モデルである。
+
+## A-00008: K3AT Strategy Brief
+
+`k3-agent` は各Run開始時に、仮説、確認済み事実、未知点、失敗した方向、次の調査優先度の5分類を持つ空のStrategy Brief revision 0をSystem側で生成する。Plannerは完全なTool Catalog、System管理Goal/Policy/Target/Action Budget、Agent State/Evidenceと明確に分離された前回Briefを受け取り、次のTool Invocation候補とBrief更新候補を返す。
+
+Strategy Briefは非権限の探索メモであり、System Policy、Target Boundary、Tool Registry、Action Budget、CredentialまたはSessionを変更しない。Tool InvocationはBriefとは独立してA-00007のRegistry、引数Validator、Target PolicyおよびBudgetを通過する。Brief候補は件数、文字数、Evidence参照、登録済みTool、全体サイズ、秘密情報および権限FieldをSystem側で検証し、成功時だけrevisionとupdated_atを付与する。欠落または不正な候補ではlast-known-valid revisionを維持する。
+
+検証済みBriefはAgent StateとRun Snapshotへ保存され、更新成功または拒否はrevisionを含む `STRATEGY` EventとしてEvent Logへ追記される。Process再起動後のRun再開機能は持たない。
+
+Dashboardは共有状態Volumeを読み取り専用で参照し、revision/更新時刻、5分類、Evidence ID、登録済みTool名を表示する。Brief、Policy、Target、ToolまたはBudgetを編集・制御するUIを持たず、API Key、Credential値、Cookie値またはFlag値を表示しない。既存Run状態、Capability/Finding、Summary、Event表示は維持する。
+
+## A-00006: Raspberry Pi Infrastructure Setup
+
+`K3Defnder-K3Atacker-infra/setup/` には、初回起動、再起動後処理、システム、Git、Dockerのセットアップスクリプトがある。READMEでRaspbian GNU/Linux 12 (Bookworm) とRaspberry Piを前提としている。CTF Referee、複数Protocol、追加ContainerおよびChallenge Networkは現行構成としては未確認であり、この文書には記録しない。
 
 ## Architecture record policy
 
