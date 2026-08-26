@@ -411,4 +411,120 @@ Capability Graphは観測モデルであり、Toolの公開、実行許可、LOC
 
 ### Verification
 
-`T-00014`で、state schema 2.0のCapability Graph／Flag Objective、Nginx・Scanner Evidence導出、Kimi提案のsuspected制限、旧Schema・不正状態FallbackおよびDashboard読み取り表示を実装した。Defenderコンテナ内Unit Test 14件、Dashboardコンテナ内Fallback確認、および静的GUI表示契約で確認した。GUI ReviewはTaskの確認状態を用いて継続する。
+`T-00014`で、state schema 2.0のCapability Graph／Flag Objective、Nginx・Scanner Evidence導出、Kimi提案のsuspected制限、旧Schema・不正状態FallbackおよびDashboard読み取り表示を実装した。Defenderコンテナ内Unit Test 15件、Dashboardコンテナ内Fallback確認、および静的GUI表示契約で確認した。GUI ReviewはTaskの確認状態を用いて継続する。
+## D-00018: Session-scoped CTF Referee and raw-value Flag verification
+
+- Status: Accepted
+- Date: 2026-08-27
+- Source: `R-00016`, `R-00019`, `R-00020`, `R-00022`, `R-00023`, `R-00030`〜`R-00036`, `R-00038`, `R-00039`
+
+### Context
+
+CTF Ground TruthをK3ATまたはDefenderが所有すると、攻撃側の推測、Defenderの推定、正解が混在する。Flag ID、原本Artifact、Refereeおよび将来のChallenge配置の対応も未定義である。3個のFlagに対してHMACは複雑すぎるため、独立Referee内での安全な生値比較を採用する。
+
+### Decision
+
+- K3DF RepositoryにDefenderとプロセス、責務、状態を分離した`referee` Serviceを追加する。RefereeはDefender、Dashboard、Webの内部Moduleをimportせず、CTF Ground Truthを独立管理する。
+- Runごとの永続状態は`run_id`、受理済みFlag ID／件数、合計`3`、`won`、時刻および値を含まないAudit情報だけとする。Flagは順不同で受理し、重複は件数に加算せず、3個すべてで勝利とする。
+- Refereeは各原本を分離したread-only Secret Fileから読み、候補の生値を比較する。Hash、HMAC、DigestまたはKeyは使用しない。constant-timeの生文字列比較は許可する。値はメモリ内だけで扱い、state、log、response、evidence、tracebackまたはauditへ保存しない。
+- Flag形式は`K3DF{<43文字のBase64URL文字列>}`とし、32 byteの暗号学的乱数から生成する。番号、配置、Container、HintまたはPathを値へ埋め込まない。
+- Secret-free Manifestにはschema version、Flag ID、原本Artifact名、形式、consumer role、暫定Challenge Path、Referee Path、Hint targetおよび配置状態を記録する。初期対応は次のとおりとする。
+
+| Flag ID | Original artifact | Consumer role | Provisional Challenge path | Referee path | Hint target |
+| --- | --- | --- | --- | --- | --- |
+| `flag-1` | `flag-1.value` | Public Web Challenge | `/run/k3df-flags/flag-1.value` | `/run/referee-flags/flag-1.value` | `flag-2`へのHintを別Fileで持つ |
+| `flag-2` | `flag-2.value` | Internal Service Challenge | `/run/k3df-flags/flag-2.value` | `/run/referee-flags/flag-2.value` | なし |
+| `flag-3` | `flag-3.value` | Challenge Database初期化 | `/run/k3df-flags/flag-3.value` | `/run/referee-flags/flag-3.value` | なし |
+
+  Challengeのconsumer roleとPathは、K3DFの脆弱性・Service・DB設計後にDesign AgentとProduct Ownerの承認で更新できる。Flag ID、原本名およびReferee Pathは独断で変更しない。
+- 未追跡runtime Artifactは次の構造とし、Flagごとに分離する。
+
+```text
+runtime/ctf/
+├── flag-1/
+│   ├── flag-1.value
+│   └── flag-1-hint.txt
+├── flag-2/
+│   └── flag-2.value
+├── flag-3/
+│   └── flag-3.value
+└── run/
+    ├── run-id
+    └── run-auth.token
+```
+
+  Refereeは`.value`だけをread-only mountし、Hintはmountしない。将来のChallengeは対応するFlagだけをread-only mountする。runtimeは追跡せず、stdout、log、CLIへSecretを出さず、暗黙上書きをせず、部分失敗時は既存Artifactを保持し、権限を制限する。Hint本文はprivate inputでCommitせず、Testではsynthetic hintだけを使う。
+- Referee APIは`POST /ctf/referee/v1/runs/{run_id}/submissions`、`GET /ctf/referee/v1/runs/{run_id}/status`およびhealthとする。run認証を必須とし、Nginxは定義済みReferee Pathだけをproxyし、runtime、state、Flag Fileを公開しない。
+- K3ATの`flag.submit`はLLMから候補値だけを受け取る。Referee URL、run ID、token、timeout、redirectおよびbudgetはSystem固定とし、run IDとtokenはExecutor内に限定しCatalog、Tool Result、Evidence、Snapshot、Event、Brief、Dashboardへ残さない。候補もtransitだけで、Invocation、Action Summary、log、error、Evidenceへ残さない。Tool CatalogはRun開始時から提示し、Capability、DepthまたはFlagでLOCKしない。
+- Responseは`accepted`、`duplicate`、`rejected`、`budget_exhausted`だけを安全に返す。accepted／duplicateのFlag ID、accepted count、total、wonは返せるが、候補、原本、token、認証情報、Secret Path、error、Hint、配置またはPathは返さない。
+
+### Rationale
+
+Ground Truthを攻撃側およびDefenderから分離し、少数のFlagを安全かつ単純に判定する。Secret-free Manifestで将来のChallenge実装との対応を追跡しつつ、K3ATへ正解経路を渡さない。
+
+### Alternatives considered
+
+- K3ATまたはDefenderがGround Truthを所有する案は、知識状態を混同するため採用しない。
+- HMAC Digest、`verifiers.json`、`verification.key`を用いる案は、3個のFlagには過剰で、鍵・検証データの管理面を増やすため採用しない。
+- 全Flagを一つのContainerまたはenvへ集約する案は、分離要件に反するため採用しない。
+
+### Consequences
+
+`T-00015`はReferee、Provisioner、ManifestおよびK3ATの`flag.submit`を実装する。Challenge Containerへのmount、実Hint、Database初期化、Capability Graphとの統合は後続Taskで行う。`ARCHITECTURE.md`には実装・検証前の構成を追加しない。
+
+### Verification
+
+Manifest、Provisioner、形式・一意性・Artifact分離、raw-value比較、Secret非永続化、順不同・重複・勝利、Run分離・永続化、認証・budget・redaction、K3AT Registry／Policy／Executor／Evidenceを検証する。実装後に確認できた結果だけを本Decisionおよび必要に応じて`D-00016`へ記録する。
+
+## D-00019: Run-scoped Credential Store and typed HTTP requests
+
+- Status: Accepted
+- Date: 2026-08-27
+- Source: `R-00012`, `R-00014`, `R-00016`, `R-00018`, `R-00020`〜`R-00023`, `R-00025`〜`R-00029`, `R-00036`〜`R-00039`, `R-00042`
+
+### Context
+
+現在の`http.request`はMethodとPathだけを扱い、Header、CookieおよびRequest Bodyを拒否する。このためPassword、TokenまたはSession Cookieを発見しても、Login、認証後Request、Form送信またはJSON APIへ利用できない。生CredentialをKimi、通常のTool引数、Evidenceまたは永続Snapshotへ渡すと秘密情報が漏えいする。
+
+### Decision
+
+K3ATへRun-scoped Credential Storeを追加し、HTTP ResponseからSystem側が抽出したCredentialをMemory上だけで保持する。Kimiには生値ではなくCredential IDと安全なMetadataだけを提示し、HTTP Executorは実行直前にCredential IDを解決してHeader、CookieまたはBodyへ挿入する。生値はProcess終了時に失われ、暗号化永続Storeおよび再起動後の復元は対象外とする。Snapshot、Event、Evidence、DashboardにはMetadataだけを保存し、復元不能な過去Metadataを利用可能Credentialとして扱わない。
+
+Credential IDは`CRED-<UUID>`とし、`cookie`、`bearer_token`、`api_key`、`password`、`form_token`、`opaque_secret`を扱う。MetadataはID、種類、安全なLabel、Source Evidence ID、Exact Origin、CookieのName／Domain／Path／Secure／HttpOnly／SameSite／Expiry、取得時刻、最終使用時刻、利用可能・期限切れ・Run終了済み状態を持つ。生値、復元可能なHash、Authorization HeaderまたはCookie Header全体を含めない。
+
+Systemは`Set-Cookie`、JSONの`token`、`access_token`、`refresh_token`、`api_key`、`apikey`、`password`、`secret`、HTML hidden inputの`csrf`、`csrf_token`、`_token`、`authenticity_token`から抽出する。`email`など一般的な個人情報は表示でRedactできてもStoreへ保存しない。Kimiが生値を再入力する`credential.store` Toolは追加しない。将来のHTTP以外のToolもSystem側Evidence Normalizerから同じStoreへ登録できる構造とし、同一Run・Origin・種類・生値はMemory内比較で重複登録しない。
+
+HTTP Executorの生Responseは、(1)受信、(2)Credential抽出・登録、(3)Header／Body Redact、(4)Credential IDを含む安全なTool Result生成、(5)安全なEvidenceとSnapshot永続化、の順に処理する。`Set-Cookie`値、Authorization値、Token、Password、API Keyおよび抽出済みCredentialをBody Previewへ残さない。
+
+`http.request`はHeader、Cookie参照およびTyped Bodyを持ち、Header・Bodyの値を`literal`または`credential_ref`で明示する。Credential参照をPath、QueryまたはURLへ挿入しない。許可Header名はProcess開始時のSystem設定で固定し、件数、名称、値、合計Size、CR／LF／NUL／制御文字を検証する。`Host`、`Content-Length`、`Transfer-Encoding`、`Connection`、`TE`、`Trailer`、`Upgrade`、`Proxy-Authorization`、`Proxy-Connection`、`Forwarded`、`Via`、`X-Forwarded-*`を拒否する。CookieはCookie Credential参照だけから生成し、Authorization、API Key系および秘密Headerのliteralを拒否する。`User-Agent`、`Content-Type`、`Content-Length`はSystemが生成し、Redirectを追跡しない。
+
+Cookie値はStoreだけがMemory上で保持し、KimiはCredential IDだけを指定する。Exact Origin、Domain、Path、Secure、Expiryを検証し、別Origin、Path不一致、期限切れ、HTTP上のSecure Cookieを拒否する。Cookie Header全体をEvidenceまたはlogへ記録せず、Cookie名、Credential ID、適用結果だけを記録できる。
+
+Bodyは`json`、`form`、`text`を対象とし、JSON／Formの各値は`literal`または`credential_ref`とする。JSONは上限付き入れ子を許可する。Binary、Multipart、File Upload、Streaming、Chunked Encoding、CredentialのPath／Query埋込み、およびGET／HEAD Bodyを拒否し、Content-TypeはSystemがBody種別から決める。
+
+固定上限はHeader数32、Header名64文字、Header値1,024文字、Header合計8 KiB、Cookie参照32、Body 16 KiB、JSON深度8、JSON／Form Leaf 128、Credential 128／Run、Credential値4 KiBとする。上限超過では暗黙Evictionせず、登録またはRequestをfail closedとする。
+
+HTTP EvidenceにはMethod、Path、Header名、Body種別・Size・Field名、使用Credential IDと適用箇所、HTTP Status、Content-Type、Redact済みBody Preview、新規Credential ID、種類、安全なScopeだけを記録できる。Header秘密値、Cookie値、Authorization値、Body内Credential値、Token、Password、API Key、復元可能情報は記録しない。Blocked EvidenceとExceptionにも同じRedactionを適用する。
+
+K3AT Dashboardには、Credential ID、種類、安全なScope、Source Evidence ID、状態、取得時刻、最終使用時刻だけを読む専用一覧として表示する。生値、コピー、編集、追加、削除、Request実行、Cookie HeaderまたはAuthorization Headerの表示を提供しない。
+
+### Rationale
+
+Credentialを安全に再利用してLogin・認証後探索へつなげ、同じ参照方式を将来のSSH、Session、Database Toolにも再利用するため。
+
+### Alternatives considered
+
+- 生CredentialをKimiがTool引数へ再入力する案
+- Cookie値をAgent Stateへ保存する案
+- Credential StoreなしでHeaderとBodyだけを追加する案
+- Cookie Jarの自動全送信、平文永続化、Capabilityによる使用Gate、任意Header／Body／Redirectの無制限許可
+
+いずれも秘密情報の露出、安全境界または動的探索の要件に反するため採用しない。
+
+### Consequences
+
+Tool Registry、HTTP Executorおよび永続化前のTool Resultに秘密値解決・安全化境界を追加する。DashboardにMetadataを表示するが、再起動後に過去Credentialを再利用できない。実装と検証は`T-00017`で行う。
+
+### Verification
+
+`T-00017`でCredential抽出、Metadata、Scope、Secret非永続化、Header／Cookie Policy、Body Schema、Credential参照、Response Redaction、Evidence、Dashboardおよび既存GET互換性を確認する。
