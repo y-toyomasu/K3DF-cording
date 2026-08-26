@@ -75,6 +75,12 @@ Dashboardは共有状態Volumeを読み取り専用で参照し、revision/更�
 
 `K3Defnder-K3Atacker-infra/setup/` には、初回起動、再起動後処理、システム、Git、Dockerのセットアップスクリプトがある。READMEでRaspbian GNU/Linux 12 (Bookworm) とRaspberry Piを前提としている。CTF Referee、複数Protocol、追加ContainerおよびChallenge Networkは現行構成としては未確認であり、この文書には記録しない。
 
+## A-00009: K3DF Capability Graph and Flag Objective display
+
+K3DF Defender state schema 2.0 は、Depth 1〜10の汎用Capability Ontologyを初期状態から持つ`capability_graph`と、侵入深度から独立したFlag 1〜3の`flag_objectives`を永続化する。Nodeは状態、confidence、Evidence ID、初回・最終観測時刻を保持し、Confirmed DepthとPossible DepthはNode状態から派生する。
+
+Nginx request EvidenceとScanner findingは浅いNodeへ反映できる。confirmedは正規化されたシステムEvidenceから導出し、KimiのCapability提案は既存Evidenceを参照するsuspectedに限る。深いNodeは浅いNodeを自動confirmedにしない。DashboardはDefenderをimportせず、状態ファイルを読み取り専用で参照し、Graph、Depth Summary、Flagの取得・提出状態を秘密情報なしで表示する。不正または旧Schemaの状態では全NodeとFlagの安全な初期表示へFallbackする。
+
 ## Architecture record policy
 
 基本設計レベルの変更は `docs/DECISIONS.md` に、変更内容と採用理由を記録する。未確認の構成や将来の設計は、この文書に事実として追加しない。

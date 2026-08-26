@@ -411,6 +411,4 @@ Capability Graphは観測モデルであり、Toolの公開、実行許可、LOC
 
 ### Verification
 
-`T-00014`で、状態モデル、Evidence導出、永続化、Dashboard、Flag 1〜3表示、互換読込みおよびGUI Reviewを確認する。
-
-`ARCHITECTURE.md`には、このTaskの検証前に未実装構成を現行事実として追加しない。
+`T-00014`で、state schema 2.0のCapability Graph／Flag Objective、Nginx・Scanner Evidence導出、Kimi提案のsuspected制限、旧Schema・不正状態FallbackおよびDashboard読み取り表示を実装した。Defenderコンテナ内Unit Test 14件、Dashboardコンテナ内Fallback確認、および静的GUI表示契約で確認した。GUI ReviewはTaskの確認状態を用いて継続する。
