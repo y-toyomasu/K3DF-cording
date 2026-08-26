@@ -78,6 +78,7 @@
 - `R-00039`: CapabilityはTool権限ではなく、実行結果のEvidenceから導出される観測結果として扱う。
 - `R-00040`: Kimi K3には内部Service構成を事前提供せず、envで許可された範囲内を探索させる。
 - `R-00041`: K3AT Dashboardは、Strategy BriefをJSON構造の解読を必要としない、人間が読みやすい構造化表示で提供する。5分類、revision、更新時刻、Evidence IDおよびTool名の追跡可能性を維持し、読み取り専用性と秘密情報非表示を維持する。
+- `R-00042`: K3ATは、HTTP Responseから発見したCredential、Session Cookieおよび認証用TokenをRun-scoped Credential Storeで管理し、生値をKimi K3または永続状態へ公開せず、Credential参照IDを使ってHeader、CookieまたはRequest Bodyへ適用し、Login、Form送信、JSON APIおよび認証後Endpointを探索できる。
 
 ## Feedback records
 

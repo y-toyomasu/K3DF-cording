@@ -478,3 +478,56 @@ Ground Truthを攻撃側およびDefenderから分離し、少数のFlagを安�
 ### Verification
 
 Manifest、Provisioner、形式・一意性・Artifact分離、raw-value比較、Secret非永続化、順不同・重複・勝利、Run分離・永続化、認証・budget・redaction、K3AT Registry／Policy／Executor／Evidenceを検証する。実装後に確認できた結果だけを本Decisionおよび必要に応じて`D-00016`へ記録する。
+
+## D-00019: Run-scoped Credential Store and typed HTTP requests
+
+- Status: Accepted
+- Date: 2026-08-27
+- Source: `R-00012`, `R-00014`, `R-00016`, `R-00018`, `R-00020`〜`R-00023`, `R-00025`〜`R-00029`, `R-00036`〜`R-00039`, `R-00042`
+
+### Context
+
+現在の`http.request`はMethodとPathだけを扱い、Header、CookieおよびRequest Bodyを拒否する。このためPassword、TokenまたはSession Cookieを発見しても、Login、認証後Request、Form送信またはJSON APIへ利用できない。生CredentialをKimi、通常のTool引数、Evidenceまたは永続Snapshotへ渡すと秘密情報が漏えいする。
+
+### Decision
+
+K3ATへRun-scoped Credential Storeを追加し、HTTP ResponseからSystem側が抽出したCredentialをMemory上だけで保持する。Kimiには生値ではなくCredential IDと安全なMetadataだけを提示し、HTTP Executorは実行直前にCredential IDを解決してHeader、CookieまたはBodyへ挿入する。生値はProcess終了時に失われ、暗号化永続Storeおよび再起動後の復元は対象外とする。Snapshot、Event、Evidence、DashboardにはMetadataだけを保存し、復元不能な過去Metadataを利用可能Credentialとして扱わない。
+
+Credential IDは`CRED-<UUID>`とし、`cookie`、`bearer_token`、`api_key`、`password`、`form_token`、`opaque_secret`を扱う。MetadataはID、種類、安全なLabel、Source Evidence ID、Exact Origin、CookieのName／Domain／Path／Secure／HttpOnly／SameSite／Expiry、取得時刻、最終使用時刻、利用可能・期限切れ・Run終了済み状態を持つ。生値、復元可能なHash、Authorization HeaderまたはCookie Header全体を含めない。
+
+Systemは`Set-Cookie`、JSONの`token`、`access_token`、`refresh_token`、`api_key`、`apikey`、`password`、`secret`、HTML hidden inputの`csrf`、`csrf_token`、`_token`、`authenticity_token`から抽出する。`email`など一般的な個人情報は表示でRedactできてもStoreへ保存しない。Kimiが生値を再入力する`credential.store` Toolは追加しない。将来のHTTP以外のToolもSystem側Evidence Normalizerから同じStoreへ登録できる構造とし、同一Run・Origin・種類・生値はMemory内比較で重複登録しない。
+
+HTTP Executorの生Responseは、(1)受信、(2)Credential抽出・登録、(3)Header／Body Redact、(4)Credential IDを含む安全なTool Result生成、(5)安全なEvidenceとSnapshot永続化、の順に処理する。`Set-Cookie`値、Authorization値、Token、Password、API Keyおよび抽出済みCredentialをBody Previewへ残さない。
+
+`http.request`はHeader、Cookie参照およびTyped Bodyを持ち、Header・Bodyの値を`literal`または`credential_ref`で明示する。Credential参照をPath、QueryまたはURLへ挿入しない。許可Header名はProcess開始時のSystem設定で固定し、件数、名称、値、合計Size、CR／LF／NUL／制御文字を検証する。`Host`、`Content-Length`、`Transfer-Encoding`、`Connection`、`TE`、`Trailer`、`Upgrade`、`Proxy-Authorization`、`Proxy-Connection`、`Forwarded`、`Via`、`X-Forwarded-*`を拒否する。CookieはCookie Credential参照だけから生成し、Authorization、API Key系および秘密Headerのliteralを拒否する。`User-Agent`、`Content-Type`、`Content-Length`はSystemが生成し、Redirectを追跡しない。
+
+Cookie値はStoreだけがMemory上で保持し、KimiはCredential IDだけを指定する。Exact Origin、Domain、Path、Secure、Expiryを検証し、別Origin、Path不一致、期限切れ、HTTP上のSecure Cookieを拒否する。Cookie Header全体をEvidenceまたはlogへ記録せず、Cookie名、Credential ID、適用結果だけを記録できる。
+
+Bodyは`json`、`form`、`text`を対象とし、JSON／Formの各値は`literal`または`credential_ref`とする。JSONは上限付き入れ子を許可する。Binary、Multipart、File Upload、Streaming、Chunked Encoding、CredentialのPath／Query埋込み、およびGET／HEAD Bodyを拒否し、Content-TypeはSystemがBody種別から決める。
+
+固定上限はHeader数32、Header名64文字、Header値1,024文字、Header合計8 KiB、Cookie参照32、Body 16 KiB、JSON深度8、JSON／Form Leaf 128、Credential 128／Run、Credential値4 KiBとする。上限超過では暗黙Evictionせず、登録またはRequestをfail closedとする。
+
+HTTP EvidenceにはMethod、Path、Header名、Body種別・Size・Field名、使用Credential IDと適用箇所、HTTP Status、Content-Type、Redact済みBody Preview、新規Credential ID、種類、安全なScopeだけを記録できる。Header秘密値、Cookie値、Authorization値、Body内Credential値、Token、Password、API Key、復元可能情報は記録しない。Blocked EvidenceとExceptionにも同じRedactionを適用する。
+
+K3AT Dashboardには、Credential ID、種類、安全なScope、Source Evidence ID、状態、取得時刻、最終使用時刻だけを読む専用一覧として表示する。生値、コピー、編集、追加、削除、Request実行、Cookie HeaderまたはAuthorization Headerの表示を提供しない。
+
+### Rationale
+
+Credentialを安全に再利用してLogin・認証後探索へつなげ、同じ参照方式を将来のSSH、Session、Database Toolにも再利用するため。
+
+### Alternatives considered
+
+- 生CredentialをKimiがTool引数へ再入力する案
+- Cookie値をAgent Stateへ保存する案
+- Credential StoreなしでHeaderとBodyだけを追加する案
+- Cookie Jarの自動全送信、平文永続化、Capabilityによる使用Gate、任意Header／Body／Redirectの無制限許可
+
+いずれも秘密情報の露出、安全境界または動的探索の要件に反するため採用しない。
+
+### Consequences
+
+Tool Registry、HTTP Executorおよび永続化前のTool Resultに秘密値解決・安全化境界を追加する。DashboardにMetadataを表示するが、再起動後に過去Credentialを再利用できない。実装と検証は`T-00017`で行う。
+
+### Verification
+
+`T-00017`でCredential抽出、Metadata、Scope、Secret非永続化、Header／Cookie Policy、Body Schema、Credential参照、Response Redaction、Evidence、Dashboardおよび既存GET互換性を確認する。
