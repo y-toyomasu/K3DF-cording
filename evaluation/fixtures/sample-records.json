@@ -1,0 +1,5 @@
+[
+  {"benchmark":"progress-review","run":1,"quality_pass":true,"wall_time_seconds":12.0,"tool_calls":2,"retries":0},
+  {"benchmark":"progress-review","run":2,"quality_pass":true,"wall_time_seconds":14.0,"tool_calls":2,"retries":0},
+  {"benchmark":"progress-review","run":3,"quality_pass":true,"wall_time_seconds":13.0,"tool_calls":3,"retries":0}
+]

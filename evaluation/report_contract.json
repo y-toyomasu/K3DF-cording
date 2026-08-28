@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "read_only": true,
+  "categories": {
+    "quality": ["result", "acceptance_criteria", "build_test", "rework", "governance_violations"],
+    "performance": ["wall_time_seconds", "time_to_first_tool_seconds", "tool_calls", "retries", "input_tokens", "output_tokens", "cost"],
+    "process": ["blocked_count", "blocked_duration_seconds", "review_to_acceptance_seconds", "unrelated_reads", "post_report_rework"]
+  },
+  "metric_fields": ["value", "unit", "source", "quality_condition", "unavailable_reason"],
+  "aggregation": {"minimum_runs": 3, "wall_time": "median", "variability": "population_standard_deviation"},
+  "prohibited_data": ["secret", "credential", "token", "flag", "authentication information", "execution secret", "private reasoning"],
+  "automatic_actions": false
+}
