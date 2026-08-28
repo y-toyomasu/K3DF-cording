@@ -474,7 +474,7 @@ Ground Truthを攻撃側およびDefenderから分離し、少数のFlagを安�
 
 ### Verification
 
-Manifest、Provisioner、形式・一意性・Artifact分離、raw-value比較、Secret非永続化、順不同・重複・勝利、Run分離・永続化、認証・budget・redaction、K3AT Registry／Policy／Executor／Evidenceを検証する。実装後に確認できた結果だけを本Decisionおよび必要に応じて`D-00016`へ記録する。
+`T-00015`でsecret-free Manifest、32 byte乱数形式のProvisioner、Git管理外runtime、独立Referee、限定Nginx proxy、固定Run認証、constant-time raw-value比較、順不同・重複非加算・3件勝利、原子的なsecret-free stateおよびsubmission budgetを実装した。K3ATにはSystem固定Referee Clientと`flag.submit` Registry sliceを実装し、candidateとTokenをCatalog、Evidence、Snapshot、Event、Dashboardおよびsafe Tool Resultから除外した。K3AT Unit Test 63件、K3DF Unit Test 3件、両Python sourceの構文検査およびReferee image buildで確認した。実Challenge配置、Hint本文、Pi間Secret自動配送および未実装Protocolは実装済みと扱わない。
 
 ## D-00019: Run-scoped Credential Store and typed HTTP requests
 

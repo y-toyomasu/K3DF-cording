@@ -53,13 +53,21 @@ envへ明示したRaspberry PiのIPまたはhostname上のChallenge公開Endpoin
 
 ## A-00007: K3AT Tool Registry
 
-`k3-agent` はProcess開始時に不変のTool Registryを生成する。各Tool定義はTool Specification、Policy Validator、Executor、Evidence Normalizerを持ち、重複Tool名を拒否する。現行Registryで実装済みのToolは、`method` と `/` から始まる相対Challenge `path` を引数に持つ `http.request` だけである。SSH、Database、Filesystemその他のTool Executorは実装していない。
+`k3-agent` はProcess開始時に不変のTool Registryを生成する。各Tool定義はTool Specification、Policy Validator、Executor、Evidence Normalizerを持ち、重複Tool名を拒否する。現行Registryで実装済みのToolは、`method` と `/` から始まる相対Challenge `path` を引数に持つ `http.request` と、candidateだけを引数に持つ`flag.submit`である。SSH、Database、Filesystemその他のTool Executorは実装していない。
 
 Registryの完全なTool Catalogと引数SchemaはRun開始時からPlannerへ提示される。PlannerとFallback Plannerは、固定ScenarioではなくGoal、Evidence、現在状態から登録済みTool名と引数を選ぶ。未知Tool、無効引数、境界外TargetはNetwork処理前に拒否される。
 
 Tool実行Policyは、A-00005の同一Target Policy、`K3AT_AUTHORIZED_HTTP_METHODS`、およびProcess開始時に正の整数として固定する `K3AT_MAX_TOOL_CALLS_PER_RUN` による具体的条件を使用する。Budget defaultは30であり、上限到達後はExecutorへ進まない。Capability、ATT&CK Tactic、自己申告Risk、発見段階および旧Authorization集合は非権限Metadataであり、Toolの提示または実行Gateに使用しない。
 
 実行済み・Blocked Invocationは、Evidence ID、Invocation ID、Tool名、Timestamp、Action要約、Outcome、HTTP StatusまたはError、bounded result metadataを持つ共通Evidenceとして区別してStateへ保存する。Evidence NormalizerはCapability、FlagまたはCredentialを推測せず、Capability Graphは実行済みHTTP ResponseのEvidenceから導出される観測モデルである。
+
+`flag.submit`はSystem固定のReferee origin、Run ID、read-only Secret Fileから起動時に一度だけ読み込むTokenを用いる。candidate、Token、原本Flag、Secret PathおよびHintはCatalog、Action Summary、Evidence、Snapshot、Event、DashboardまたはTool Resultへ保存しない。K3ATはReferee stateのwriterではない。
+
+## A-00010: K3DF CTF Referee
+
+K3DFはNginxから限定されたversioned APIだけをproxyする独立`referee` Serviceを持つ。RefereeはWeb、Defender、Dashboardの内部Moduleをimportせず、read-onlyでmountされたRun ID、Run TokenおよびFlag 1〜3の原本Fileを起動時に検査する。raw candidateはProcess Memory内でconstant-time比較し、受理済みFlag ID、件数、勝利、submission budgetだけを独自の原子的stateへ保存する。
+
+Flag定義Manifestは値を含まず、runtime ArtifactはGit管理外である。Refereeは順不同の提出、重複非加算、3件受理時の勝利を扱う。ChallengeへのFlag配置、Hint本文およびPi間のSecret自動配送は現行構成に含まれない。
 
 ## A-00008: K3AT Strategy Brief
 
