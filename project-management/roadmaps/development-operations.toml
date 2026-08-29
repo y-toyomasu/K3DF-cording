@@ -37,7 +37,7 @@ horizon = "next"
 display_order = 40
 name = "K3Ops UX Enhancement"
 purpose = "Filter、自動更新、警告表示、狭幅UIを後続Taskで実施する"
-task_ids = []
+task_ids = ["T-00022"]
 references = ["project-management/k3ops-data-contract.md"]
 
 [[workstreams.items]]
