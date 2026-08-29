@@ -42,6 +42,18 @@ Wall-clock、最初のTool Callまでの時間、Tool Call、同一ファイル�
 
 各Benchmarkは入力、期待結果、合否条件、Task種別、難易度、Model、Reasoning Effort、Prompt Version、複数回のRunを定義する。
 
+## Operational Observation Pilot
+
+固定BenchmarkはModel／Prompt／AGENTS変更の因果比較とRegression確認に維持する。Operational Baselineは実開発Taskをread-only観測し、異なるTaskを直接A/B比較せず、Role、Task Type、Difficulty、Risk、AGENTS Versionで比較可能性を限定する。個別生RecordはGit管理外とし、追跡対象はSchema、Rubric、Evaluator、Test、Sanitized Fixture、手順および別途承認済み集計Reportだけとする。
+
+Difficulty Rubric v1.0はChange Surface、Uncertainty、Integration、Verification、Safety Risk、Coordinationを各0～3で採点する。合計Bandは0～3 Routine、4～7 Low、8～11 Medium、12～15 High、16～18 Very Highとする。各Axisの0=なし、1=限定的、2=複数要素または通常の判断、3=広範・高不確実・高リスクまたは複数主体の調整をAnchorとする。Task LeadはREADY前に承認済みTask本文・永続文書だけでPredicted Score、confidence、短い根拠を固定し、迷う場合は最も妥当な値とlow confidenceを記録する。追加調査、差戻し、BLOCKED、公開保留、Requirementsや推奨設定の変更はしない。Engineering AgentはVERIFY後に構造的EvidenceによるRealized Score、予測差、confidenceだけを記録する。負荷はActive作業の10%未満を目標としLifecycle Gateにしない。
+
+Difficulty計算はModel、Reasoning、wall-clock、Tool Call、Retry、Qualityを入力に使わない。Safety Risk=3またはUncertainty=3はRecommendation Safety Floorとして別扱いにできる。Evaluatorは同じRubricを再計算し差をCalibration Warningとして返すが、差戻し、自動修正、BLOCKEDにしない。
+
+Operational RecordはConfiguration、Difficulty、Quality、Performance、Process/Waiting、Execution Friction、Unavailable Reasonを分離する。Model／ReasoningはTask推奨、Product Owner選択、環境確認済み実値および各Sourceを別Fieldにし、取得不能値は推測せずunavailable_reasonとする。Active作業とDependency／Human／Review待ちは混合しない。Quality合格RunだけをPerformance根拠に用いる。Task本文、Prompt、Command/Error、絶対Path、Secret、Credential、Token、Flag、認証情報、実行秘密、非公開思考をRecord／Reportへ含めない。
+
+RecommendationはRetain、Change Candidate、More Data Requiredだけとし、比較Class、Sample数、Quality条件、Configuration、Difficulty Range、指標、根拠、Confidence、制約を示す。同一ClassのQuality合格Sampleが3未満、比較不能、品質Regression、設定不明またはRubric Version不一致ならMore Data Requiredとする。自動的にTask推奨、Agent設定、AGENTS.mdまたはModelを変更しない。
+
 ## Roadmap
 
 ### Now — Measurement Foundation
