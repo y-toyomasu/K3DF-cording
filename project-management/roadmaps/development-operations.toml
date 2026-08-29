@@ -1,0 +1,77 @@
+schema_version = "1.0"
+
+[[workstreams]]
+id = "agent-performance"
+name = "Agent Performance"
+
+[[workstreams.items]]
+id = "measurement-foundation"
+horizon = "now"
+display_order = 10
+name = "Measurement Foundation"
+purpose = "読み取り専用EvaluatorとBaselineを確立する"
+task_ids = ["T-00018"]
+references = ["project-management/roadmaps/agent-performance.md"]
+
+[[workstreams.items]]
+id = "operations-roadmap-contract"
+horizon = "now"
+display_order = 20
+name = "Development Operations Roadmap and K3Ops Data Contract"
+purpose = "開発運用ロードマップと安全な集計契約を確立する"
+task_ids = ["T-00019"]
+references = ["F-00025", "project-management/k3ops-data-contract.md"]
+
+[[workstreams.items]]
+id = "k3ops-safe-mvp"
+horizon = "next"
+display_order = 30
+name = "K3Ops Safe MVP"
+purpose = "安全な読取・集計・API・最小Dashboardを後続Taskで実施する"
+task_ids = ["T-00020"]
+references = ["project-management/k3ops-data-contract.md"]
+
+[[workstreams.items]]
+id = "k3ops-ux-enhancement"
+horizon = "next"
+display_order = 40
+name = "K3Ops UX Enhancement"
+purpose = "Filter、自動更新、警告表示、狭幅UIを後続Taskで実施する"
+task_ids = []
+references = ["project-management/k3ops-data-contract.md"]
+
+[[workstreams.items]]
+id = "agents-optimization"
+horizon = "next"
+display_order = 50
+name = "AGENTS.md Optimization"
+purpose = "測定結果を基に規約とPlaybookを最適化する"
+task_ids = []
+references = ["project-management/roadmaps/agent-performance.md"]
+
+[[workstreams.items]]
+id = "model-reasoning-optimization"
+horizon = "next"
+display_order = 60
+name = "Model and Reasoning Optimization"
+purpose = "Task種別ごとの推奨実行条件を測定する"
+task_ids = []
+references = ["project-management/roadmaps/agent-performance.md"]
+
+[[workstreams.items]]
+id = "k3ops-performance-integration"
+horizon = "later"
+display_order = 70
+name = "K3Ops Performance Integration"
+purpose = "Performance情報をK3Opsへ統合する"
+task_ids = []
+references = ["project-management/roadmaps/agent-performance.md"]
+
+[[workstreams.items]]
+id = "continuous-evaluation"
+horizon = "ongoing"
+display_order = 80
+name = "Continuous Evaluation"
+purpose = "運用変更時と定期評価時にBenchmarkを再実行する"
+task_ids = []
+references = ["project-management/roadmaps/agent-performance.md"]
