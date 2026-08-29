@@ -1,0 +1,1 @@
+{"version":"1.0","sections":["configuration","difficulty","quality","performance","process_waiting","execution_friction","unavailable_reason"],"prohibited":["task_body","prompt","command_error","host_absolute_path","secret","credential","token","flag","authentication","execution_secret","private_reasoning"]}
