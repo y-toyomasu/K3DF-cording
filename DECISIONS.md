@@ -353,7 +353,7 @@ Capabilityに応じてToolを段階公開する案は、`F-00003` と `F-00012` 
 
 ### Verification
 
-T-00006のTool Registryと基本HTTP Tool、およびT-00007のStrategy Briefは実装済みである。T-00007では、BriefがRegistry、Target、Policy、Budgetを変更せず、実装済みToolの完全Catalog提示を維持することをAgent 59件とDashboard 2件のTestで確認した。CTF、Credential、TCP、SSH、Shell、Filesystem、Database、Flag、K3DF統合は未実装であり、各将来Taskで本Decisionの境界を検証する。
+T-00006のTool Registryと基本HTTP Tool、T-00007のStrategy Brief、T-00015のCTF Referee／Flag提出Tool／Ground Truth分離、およびT-00017のHTTP Header／Cookie／Typed Body／Run-scoped Credential Storeは実装済みである。T-00017では、実装済みToolの完全Catalog提示を維持し、Credential IDだけをPlannerへ渡し、Header、Cookie、Body、Scope、Target、Budgetおよび秘密情報非永続化の境界をAgent 77件とDashboard 3件のTestで確認した。TCP、SSH、Shell、Filesystem、Database、ChallengeへのFlag配置およびK3DF侵入深度統合は未実装であり、各将来Taskで本Decisionの境界を検証する。
 
 ## D-00017: Generic capability depth ontology and separate flag objectives
 
@@ -527,4 +527,4 @@ Tool Registry、HTTP Executorおよび永続化前のTool Resultに秘密値解�
 
 ### Verification
 
-`T-00017`でCredential抽出、Metadata、Scope、Secret非永続化、Header／Cookie Policy、Body Schema、Credential参照、Response Redaction、Evidence、Dashboardおよび既存GET互換性を確認する。
+`T-00017`でRun-scoped Credential Store、`Set-Cookie`／既知JSON Field／既知HTML hidden inputの抽出、重複・上限処理、Metadata、Exact Origin／Cookie Scope、Secret非永続化、Header／Cookie Policy、JSON／Form／Text Body、Credential参照、Response／Blocked／Executor Error Redaction、Evidence、Planner入力、Dashboardおよび既存Method＋Path互換性を実装した。K3AT Agent 77件とDashboard 3件の自動Test、K3AT／Dashboard image Build、Desktop 1280pxおよび狭幅390pxのGUI確認に合格した。GUIではCredential Metadata 2件、既存Run／Finding／Strategy Brief表示、横Overflowなし、操作要素なしおよび合成生値Marker不在を確認した。外部Target、Kimi API Keyおよび実Credentialは使用していない。
