@@ -51,6 +51,14 @@ Taskは`tasks/TEMPLATE.md`を基に作成し、次の8 Statusのいずれかを�
 
 ## Workflow
 
+### New Task Active-work Planning
+
+- Task Leadは、この規約の施行後に作成する新規Taskを、Engineering Agentの`CLAIM → PREPARE → IMPLEMENT → VERIFY → REPORT`が概ね15分以内のActive作業で完了する粒度として計画する。既存の公開済み、取得済みまたは`DESIGN` Taskには遡及適用しない。
+- Active作業にはTask確認、worktree準備、実装、Build、Test、GUI自動検証、Commit、REPORTおよびTool／Command実行待ちを含める。Dependency待ち、`BLOCKED`中の判断待ち、Product OwnerのGUI Review／Acceptance待ちおよび取得前待ちは含めない。
+- 15分を超える可能性が高いTaskは、Repository、責務、実装段階または検証段階の境界で、独立して検証・受入れ可能なTaskへ分割する。安全性、原子性、Rollback可能性または有効な検証を損なう分割は行わない。
+- 分割不能な場合だけ、Taskの`Planned Active Time`へ`>15 minutes — exception approved`、`Time Box Exception`へ必要性とProduct Ownerの明示承認を記録する。通常は`Planned Active Time: ≤15 minutes`および`Time Box Exception: none`とする。
+- 15分は計画目標であり、Engineering Agentの強制終了、Lifecycle Gate、検証省略または`BLOCKED`理由に使用しない。実時間は信頼できる情報源から取得できる場合だけ記録し、推測しない。
+
 ### Task Lead: `DRAFT → SYNC → PUBLISH`
 
 1. **DRAFT**: 未使用IDで新規Taskを`DESIGN`として作成する。
