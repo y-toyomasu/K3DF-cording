@@ -13,9 +13,33 @@ CONFIDENCE = {"low", "medium", "high"}
 DECISIONS = {"Retain", "Change Candidate", "More Data Required"}
 PROHIBITED_FIELDS = {"task_body", "prompt", "command", "error", "host_path", "secret", "credential", "token", "flag", "authentication", "execution_secret", "private_reasoning"}
 REQUIRED_SECTIONS = {"comparison_class", "configuration", "predicted_difficulty", "realized_difficulty", "quality", "performance", "process_waiting", "execution_friction", "unavailable_reason"}
+CONFIG_FIELDS = {"model", "reasoning", "source", "unavailable_reason"}
+QUALITY_FIELDS = {"passed", "acceptance_criteria", "build_test", "rework", "governance_violations", "regression"}
+PERFORMANCE_FIELDS = {"wall_time_seconds", "time_to_first_tool_seconds", "tool_calls", "input_tokens", "output_tokens", "cost"}
+WAITING_FIELDS = {"active_seconds", "human_wait_seconds", "dependency_wait_seconds", "review_wait_seconds"}
+FRICTION_FIELDS = {"tool_errors", "retries", "reverification", "post_report_rework"}
+COMPARISON_FIELDS = {"role", "task_type", "difficulty_band", "risk", "agents_version"}
+UNAVAILABLE_FIELDS = PERFORMANCE_FIELDS | {"tokens", "active_seconds", "waiting_seconds", "actual_model", "actual_reasoning"}
 
 class ValidationError(ValueError):
     """Sanitized validation error that never includes raw values or paths."""
+
+def _allowlist(section: str, value: Any, allowed: set[str]) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) - allowed:
+        raise ValidationError(section + " contains an unknown field")
+    return value
+
+def _text(value: Any, label: str, maximum: int = 160) -> str:
+    if not isinstance(value, str) or not value or len(value) > maximum:
+        raise ValidationError(label + " is invalid")
+    _reject_prohibited(value)
+    return value
+
+def _number(value: Any, label: str, integer: bool = False) -> int | float:
+    valid_type = type(value) is int if integer else type(value) in (int, float)
+    if not valid_type or value < 0:
+        raise ValidationError(label + " is invalid")
+    return value
 
 def band(total: int) -> str:
     for upper, name in BANDS:
@@ -38,46 +62,63 @@ def _reject_prohibited(value: Any) -> None:
             raise ValidationError("record contains prohibited content")
 
 def difficulty(section: dict[str, Any]) -> dict[str, Any]:
+    allowed = {"rubric_version", "axes", "total", "band", "confidence", "structural_evidence"}
+    _allowlist("difficulty", section, allowed)
     if section.get("rubric_version") != "1.0": raise ValidationError("rubric version mismatch")
     if section.get("confidence") not in CONFIDENCE: raise ValidationError("difficulty confidence is invalid")
-    axes = {axis: section.get("axes", {}).get(axis) for axis in AXES}
+    axes_input = _allowlist("difficulty axes", section.get("axes"), set(AXES))
+    axes = {axis: axes_input.get(axis) for axis in AXES}
     if any(type(value) is not int or not 0 <= value <= 3 for value in axes.values()): raise ValidationError("rubric axis is invalid")
     total = sum(axes.values()); computed_band = band(total)
     supplied_total, supplied_band = section.get("total"), section.get("band")
+    if supplied_total is not None and (type(supplied_total) is not int or not 0 <= supplied_total <= 18): raise ValidationError("difficulty total is invalid")
+    if supplied_band is not None and supplied_band not in {name for _, name in BANDS}: raise ValidationError("difficulty band is invalid")
     warning = (supplied_total is not None and supplied_total != total) or (supplied_band is not None and supplied_band != computed_band)
     return {"rubric_version":"1.0", "axes":axes, "total":total, "band":computed_band, "confidence":section["confidence"], "calibration_warning":warning}
 
 def _configuration(config: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    _allowlist("configuration", config, {"recommended", "po_selected", "actual"})
     result, complete = {}, True
     for name in ("recommended", "po_selected", "actual"):
-        item = config.get(name, {})
+        item = _allowlist("configuration source", config.get(name), CONFIG_FIELDS)
         unavailable = item.get("unavailable_reason")
-        valid = bool(item.get("model") and item.get("reasoning") and item.get("source"))
-        if not valid and not unavailable: raise ValidationError("configuration source is incomplete")
+        valid = all(isinstance(item.get(key), str) and 0 < len(item[key]) <= 80 for key in ("model", "reasoning", "source"))
+        if unavailable is not None: _text(unavailable, "configuration unavailable reason")
+        if not valid and unavailable is None: raise ValidationError("configuration source is incomplete")
+        if valid:
+            for key in ("model", "reasoning", "source"): _text(item[key], "configuration value", 80)
         complete &= valid
         result[name] = {"model":item.get("model"), "reasoning":item.get("reasoning"), "source":item.get("source"), "unavailable_reason":unavailable}
     return result, complete
 
 def _validate(record: dict[str, Any]) -> dict[str, Any]:
     _reject_prohibited(record)
-    if not REQUIRED_SECTIONS <= record.keys(): raise ValidationError("record is missing a required section")
+    if not isinstance(record, dict) or set(record) != REQUIRED_SECTIONS: raise ValidationError("record sections are invalid")
     config, config_complete = _configuration(record["configuration"])
     predicted, realized = difficulty(record["predicted_difficulty"]), difficulty(record["realized_difficulty"])
-    if not record["realized_difficulty"].get("structural_evidence"): raise ValidationError("realized difficulty evidence is unavailable")
-    quality = record["quality"]
-    required_quality = {"passed", "acceptance_criteria", "build_test", "rework", "governance_violations", "regression"}
-    if not required_quality <= quality.keys(): raise ValidationError("quality record is incomplete")
-    waiting = record["process_waiting"]
-    required_waiting = {"active_seconds", "human_wait_seconds", "dependency_wait_seconds", "review_wait_seconds"}
-    if not required_waiting <= waiting.keys(): raise ValidationError("waiting record is incomplete")
-    friction = record["execution_friction"]
-    if not {"tool_errors", "retries", "reverification", "post_report_rework"} <= friction.keys(): raise ValidationError("friction record is incomplete")
-    metrics_complete = record["performance"].get("wall_time_seconds") is not None
-    comparison = record["comparison_class"]
-    if not {"role", "task_type", "difficulty_band", "risk", "agents_version"} <= comparison.keys(): raise ValidationError("comparison class is incomplete")
+    evidence = record["realized_difficulty"].get("structural_evidence")
+    if not isinstance(evidence, list) or not 1 <= len(evidence) <= 8: raise ValidationError("realized difficulty evidence is unavailable")
+    evidence = [_text(item, "structural evidence") for item in evidence]
+    quality_input = _allowlist("quality", record["quality"], QUALITY_FIELDS)
+    if set(quality_input) != QUALITY_FIELDS or type(quality_input["passed"]) is not bool or type(quality_input["regression"]) is not bool: raise ValidationError("quality record is incomplete")
+    quality = {"passed":quality_input["passed"], "acceptance_criteria":_text(quality_input["acceptance_criteria"], "acceptance status", 40), "build_test":_text(quality_input["build_test"], "build test status", 40), "rework":_number(quality_input["rework"], "rework", True), "governance_violations":_number(quality_input["governance_violations"], "governance violations", True), "regression":quality_input["regression"]}
+    performance_input = _allowlist("performance", record["performance"], PERFORMANCE_FIELDS)
+    performance = {key:_number(value, key) for key,value in performance_input.items() if value is not None}
+    waiting_input = _allowlist("process waiting", record["process_waiting"], WAITING_FIELDS)
+    if set(waiting_input) != WAITING_FIELDS: raise ValidationError("waiting record is incomplete")
+    waiting = {key:_number(waiting_input[key], key) for key in WAITING_FIELDS}
+    friction_input = _allowlist("execution friction", record["execution_friction"], FRICTION_FIELDS)
+    if set(friction_input) != FRICTION_FIELDS: raise ValidationError("friction record is incomplete")
+    friction = {key:_number(friction_input[key], key, True) for key in FRICTION_FIELDS}
+    unavailable_input = _allowlist("unavailable reason", record["unavailable_reason"], UNAVAILABLE_FIELDS)
+    unavailable = {key:_text(value, "unavailable reason") for key,value in unavailable_input.items()}
+    comparison_input = _allowlist("comparison class", record["comparison_class"], COMPARISON_FIELDS)
+    if set(comparison_input) != COMPARISON_FIELDS: raise ValidationError("comparison class is incomplete")
+    comparison = {key:_text(comparison_input[key], key, 80) for key in COMPARISON_FIELDS}
+    metrics_complete = performance.get("wall_time_seconds") is not None
     return {"comparison_class":comparison, "configuration":config, "configuration_complete":config_complete, "predicted":predicted, "realized":realized,
-            "prediction_error":realized["total"]-predicted["total"], "quality":quality, "performance":record["performance"],
-            "process_waiting":waiting, "execution_friction":friction, "unavailable_reason":record["unavailable_reason"], "metrics_complete":metrics_complete}
+            "prediction_error":realized["total"]-predicted["total"], "quality":quality, "performance":performance,
+            "process_waiting":waiting, "execution_friction":friction, "unavailable_reason":unavailable, "realized_evidence":evidence, "metrics_complete":metrics_complete}
 
 def evaluate(records: list[dict[str, Any]]) -> dict[str, Any]:
     rendered, eligible = [], []
