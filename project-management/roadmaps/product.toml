@@ -1,0 +1,102 @@
+schema_version = "1.0"
+title = "Product Roadmap"
+
+[[workstreams]]
+id = "attacker-foundation"
+name = "Attacker Foundation"
+[[workstreams.items]]
+id="basic-http-tool-registry"
+horizon="now"
+display_order=10
+name="Basic HTTP Tool Registry"
+purpose="制約付きHTTP Toolの基盤を提供する"
+task_ids=["T-00006"]
+references=["D-00016"]
+[[workstreams.items]]
+id="strategy-brief"
+horizon="now"
+display_order=20
+name="Strategy Brief"
+purpose="Evidenceに基づく動的探索のStrategy Briefを提供する"
+task_ids=["T-00007"]
+references=["D-00016"]
+[[workstreams.items]]
+id="ctf-referee-flag-submit"
+horizon="now"
+display_order=30
+name="CTF Referee and Flag Submit"
+purpose="CTF Ground TruthとFlag提出を分離する"
+task_ids=["T-00015"]
+references=["D-00018"]
+[[workstreams.items]]
+id="http-credential-store"
+horizon="now"
+display_order=40
+name="HTTP Credential Store"
+purpose="HTTP Credential、Cookie、Typed Bodyを安全に再利用する"
+task_ids=["T-00017"]
+references=["D-00016"]
+
+[[workstreams]]
+id="protocol-session-expansion"
+name="Protocol and Session Expansion"
+[[workstreams.items]]
+id="tcp-scan"
+horizon="next"
+display_order=10
+name="TCP Scan"
+purpose="env許可Host／Port Range内のTCP Scan"
+task_ids=[]
+references=["D-00016"]
+[[workstreams.items]]
+id="challenge-ssh-session"
+horizon="next"
+display_order=20
+name="Challenge SSH Session"
+purpose="Management SSHと分離されたChallenge SSH Session"
+task_ids=[]
+references=["D-00016"]
+[[workstreams.items]]
+id="session-shell-filesystem"
+horizon="next"
+display_order=30
+name="Session Shell and Filesystem"
+purpose="許可済みChallenge Session内のShellとFilesystem list/read"
+task_ids=[]
+references=["D-00016"]
+[[workstreams.items]]
+id="challenge-database"
+horizon="next"
+display_order=40
+name="Challenge Database"
+purpose="Challenge Databaseまたは許可Session経由のDB接続"
+task_ids=[]
+references=["D-00016"]
+
+[[workstreams]]
+id="challenge-defender-integration"
+name="Challenge and Defender Integration"
+[[workstreams.items]]
+id="capability-graph-foundation"
+horizon="now"
+display_order=10
+name="Capability Graph Foundation"
+purpose="汎用Capability Graph、侵入深度、Flag Objective表示"
+task_ids=["T-00014"]
+references=["D-00017"]
+[[workstreams.items]]
+id="challenge-flag-placement"
+horizon="next"
+display_order=20
+name="Challenge Flag Placement"
+purpose="Flag 1〜3をChallenge consumerへ分離配置し、Flag 1からFlag 2へのprivate Hintを接続する"
+task_ids=[]
+references=["D-00018"]
+[[workstreams.items]]
+id="live-evidence-integration"
+horizon="later"
+display_order=30
+name="Live Evidence Integration"
+purpose="K3AT／Refereeの安全なEvidenceをK3DF Capability／Flag状態へ統合する"
+task_ids=[]
+references=["T-00014", "D-00018"]

@@ -53,13 +53,17 @@ envへ明示したRaspberry PiのIPまたはhostname上のChallenge公開Endpoin
 
 ## A-00007: K3AT Tool Registry
 
-`k3-agent` はProcess開始時に不変のTool Registryを生成する。各Tool定義はTool Specification、Policy Validator、Executor、Evidence Normalizerを持ち、重複Tool名を拒否する。現行Registryで実装済みのToolは、`method` と `/` から始まる相対Challenge `path` を引数に持つ `http.request` と、candidateだけを引数に持つ`flag.submit`である。SSH、Database、Filesystemその他のTool Executorは実装していない。
+`k3-agent` はProcess開始時に不変のTool Registryを生成する。各Tool定義はTool Specification、Policy Validator、Executor、Evidence Normalizerを持ち、重複Tool名を拒否する。現行Registryで実装済みのToolは、`method` と `/` から始まる相対Challenge `path`、任意の許可Header、Cookie Credential参照およびTyped Bodyを引数に持つ `http.request` と、candidateだけを引数に持つ`flag.submit`である。旧来のMethod＋PathだけのHTTP引数も有効である。SSH、Database、Filesystemその他のTool Executorは実装していない。
 
 Registryの完全なTool Catalogと引数SchemaはRun開始時からPlannerへ提示される。PlannerとFallback Plannerは、固定ScenarioではなくGoal、Evidence、現在状態から登録済みTool名と引数を選ぶ。未知Tool、無効引数、境界外TargetはNetwork処理前に拒否される。
 
-Tool実行Policyは、A-00005の同一Target Policy、`K3AT_AUTHORIZED_HTTP_METHODS`、およびProcess開始時に正の整数として固定する `K3AT_MAX_TOOL_CALLS_PER_RUN` による具体的条件を使用する。Budget defaultは30であり、上限到達後はExecutorへ進まない。Capability、ATT&CK Tactic、自己申告Risk、発見段階および旧Authorization集合は非権限Metadataであり、Toolの提示または実行Gateに使用しない。
+Tool実行Policyは、A-00005の同一Target Policy、`K3AT_AUTHORIZED_HTTP_METHODS`、Process開始時に固定する`K3AT_AUTHORIZED_HTTP_HEADERS`、Credentialの種類・Origin・Cookie Scope、および正の整数として固定する `K3AT_MAX_TOOL_CALLS_PER_RUN` による具体的条件を使用する。Budget defaultは30であり、上限到達後はExecutorへ進まない。Capability、ATT&CK Tactic、自己申告Risk、発見段階および旧Authorization集合は非権限Metadataであり、Toolの提示または実行Gateに使用しない。
 
-実行済み・Blocked Invocationは、Evidence ID、Invocation ID、Tool名、Timestamp、Action要約、Outcome、HTTP StatusまたはError、bounded result metadataを持つ共通Evidenceとして区別してStateへ保存する。Evidence NormalizerはCapability、FlagまたはCredentialを推測せず、Capability Graphは実行済みHTTP ResponseのEvidenceから導出される観測モデルである。
+実行済み・Blocked Invocationは、Evidence ID、Invocation ID、Tool名、Timestamp、Action要約、Outcome、HTTP StatusまたはError、bounded result metadataを持つ共通Evidenceとして区別してStateへ保存する。Evidence NormalizerはCapabilityまたはFlagを推測せず、Credentialは既知のResponse FieldだけからSystem側で抽出する。Capability Graphは実行済みHTTP ResponseのEvidenceから導出される観測モデルである。
+
+`k3-agent`はRun-scoped Credential StoreをProcess Memory内に持つ。HTTP ExecutorはResponse受信後、`Set-Cookie`、承認済みJSON FieldおよびHTML hidden inputを抽出・登録してからHeader／BodyをRedactし、安全なTool ResultとEvidenceを生成する。同一Runの重複をMemory内比較で除外し、上限超過時は既存CredentialをEvictしない。Kimi、Tool Catalog、Snapshot、Event、Evidence、logおよびDashboardへは`CRED-<UUID>`と種類、Label、Source Evidence、Exact OriginまたはCookie Scope、時刻、状態だけを渡す。生値と復元可能なHashは永続化せず、Run終了時にMemory上の値を破棄してMetadataを`run_ended`とする。
+
+HTTP HeaderとJSON／Formの値は`literal`または`credential_ref`を明示し、CookieはCredential参照だけから生成する。CredentialはExecutorが実行直前に解決する。Header、Cookie、Body、JSON深度・LeafおよびCredential数・値SizeはD-00019の固定上限で検証する。Routing／Forwarding／Proxy Header、秘密Headerのliteral、Scope不一致、Credential参照を含むPath／Query、GET／HEAD Body、Binary／Multipart／Streaming、Redirect追跡および環境Proxy利用を拒否する。Dashboardは共有SnapshotからCredential Metadataだけを読み取り専用表示し、生値、コピー、編集、追加、削除またはRequest実行機能を持たない。
 
 `flag.submit`はSystem固定のReferee origin、Run ID、read-only Secret Fileから起動時に一度だけ読み込むTokenを用いる。candidate、Token、原本Flag、Secret PathおよびHintはCatalog、Action Summary、Evidence、Snapshot、Event、DashboardまたはTool Resultへ保存しない。K3ATはReferee stateのwriterではない。
 
