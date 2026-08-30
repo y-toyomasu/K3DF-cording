@@ -17,7 +17,7 @@ Benchmark定義は`benchmarks.json`、Report Contractは`report_contract.json`�
 
 Schemaは`operational-schema.json`、合成Fixtureは`fixtures/operational-sample.json`です。Rubric v1.0はChange Surface、Uncertainty、Integration、Verification、Safety Risk、Coordinationを0〜3で採点し、EvaluatorがTotalとBandを再計算します。Model、Reasoning、PerformanceおよびQualityはDifficulty Scoreに使用しません。
 
-ConfigurationはTask推奨、Product Owner選択、環境確認済み実値をModel／Reasoning／Source付きで別々に記録します。取得不能値は推測せず、Fieldの`unavailable_reason`へ理由を記録します。Active作業時間とHuman、Dependency、Reviewの各待ち時間を分離し、Tool Error、Retry、再検証、REPORT後手戻りはExecution Frictionへ記録します。
+ConfigurationはTask推奨、Product Owner選択、環境確認済み実値をModel／Reasoning／Source付きで別々に記録します。取得不能値は推測せず、Fieldの`unavailable_reason`へ理由を記録します。Active作業時間とHuman、Dependency、Reviewの各待ち時間を分離し、Tool Error、Retry、再検証、REPORT後手戻りはExecution Frictionへ記録します。WaitingまたはExecution Frictionを取得できない場合は値を`null`とし、`unavailable_reason`へ同名Fieldの理由を必ず記録します。実測`0`は取得済みの0だけを表し、未取得値の代用には使用しません。
 
 生RecordはGit管理外の`evaluation/raw-records/`だけに置きます。Task本文、Prompt、Command／Error本文、Host固有Path、Secret、Credential、Token、Flag、認証情報、実行秘密、非公開思考を収集・表示・永続化しません。
 

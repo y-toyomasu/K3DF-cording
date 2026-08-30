@@ -33,6 +33,20 @@ class OperationalTests(unittest.TestCase):
   a=sample(); a["comparison_class"]["role"]="x"*81; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
   a=sample(); a["predicted_difficulty"]["total"]="11"; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
   a=sample(); a["predicted_difficulty"]["total"]=99; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
+ def test_unavailable_waiting_and_friction_require_matching_reasons(self):
+  a=sample()
+  unavailable_fields=("active_seconds","human_wait_seconds","dependency_wait_seconds","review_wait_seconds","tool_errors","retries","reverification","post_report_rework")
+  for key in unavailable_fields: a["unavailable_reason"][key]="not available"
+  for key in a["process_waiting"]: a["process_waiting"][key]=None
+  for key in a["execution_friction"]: a["execution_friction"][key]=None
+  row=evaluate([a])["records"][0]
+  for key in a["process_waiting"]: self.assertIsNone(row["process_waiting"][key])
+  for key in a["execution_friction"]: self.assertIsNone(row["execution_friction"][key])
+  a=sample(); a["process_waiting"]["active_seconds"]=None; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
+  a=sample(); a["execution_friction"]["retries"]=None; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
+  a=sample(); a["unavailable_reason"]["retries"]="not available"; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
+  a=sample(); a["process_waiting"]["human_wait_seconds"]=-1; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
+  a=sample(); a["execution_friction"]["retries"]=-1; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
  def test_three_comparable_samples_retain_without_causal_claim(self):
   recommendation=evaluate([sample(),sample(),sample()])["recommendation"]; self.assertEqual(recommendation["decision"],"Retain"); self.assertIn("observational only",recommendation["constraints"])
 if __name__=="__main__": unittest.main()

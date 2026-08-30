@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 from pathlib import Path
 from typing import Any
@@ -19,7 +20,7 @@ PERFORMANCE_FIELDS = {"wall_time_seconds", "time_to_first_tool_seconds", "tool_c
 WAITING_FIELDS = {"active_seconds", "human_wait_seconds", "dependency_wait_seconds", "review_wait_seconds"}
 FRICTION_FIELDS = {"tool_errors", "retries", "reverification", "post_report_rework"}
 COMPARISON_FIELDS = {"role", "task_type", "difficulty_band", "risk", "agents_version"}
-UNAVAILABLE_FIELDS = PERFORMANCE_FIELDS | {"tokens", "active_seconds", "waiting_seconds", "actual_model", "actual_reasoning"}
+UNAVAILABLE_FIELDS = PERFORMANCE_FIELDS | WAITING_FIELDS | FRICTION_FIELDS | {"tokens", "waiting_seconds", "actual_model", "actual_reasoning"}
 
 class ValidationError(ValueError):
     """Sanitized validation error that never includes raw values or paths."""
@@ -37,9 +38,26 @@ def _text(value: Any, label: str, maximum: int = 160) -> str:
 
 def _number(value: Any, label: str, integer: bool = False) -> int | float:
     valid_type = type(value) is int if integer else type(value) in (int, float)
-    if not valid_type or value < 0:
+    if not valid_type or not math.isfinite(value) or value < 0:
         raise ValidationError(label + " is invalid")
     return value
+
+def _measurements(section: str, value: Any, fields: set[str], unavailable: dict[str, str], integer: bool = False) -> dict[str, Any]:
+    source = _allowlist(section, value, fields)
+    if set(source) != fields:
+        raise ValidationError(section + " record is incomplete")
+    result = {}
+    for key in fields:
+        measured, reason = source[key], unavailable.get(key)
+        if measured is None:
+            if reason is None:
+                raise ValidationError(section + " unavailable reason is missing")
+            result[key] = None
+        else:
+            if reason is not None:
+                raise ValidationError(section + " unavailable reason conflicts with a measured value")
+            result[key] = _number(measured, key, integer)
+    return result
 
 def band(total: int) -> str:
     for upper, name in BANDS:
@@ -102,16 +120,12 @@ def _validate(record: dict[str, Any]) -> dict[str, Any]:
     quality_input = _allowlist("quality", record["quality"], QUALITY_FIELDS)
     if set(quality_input) != QUALITY_FIELDS or type(quality_input["passed"]) is not bool or type(quality_input["regression"]) is not bool: raise ValidationError("quality record is incomplete")
     quality = {"passed":quality_input["passed"], "acceptance_criteria":_text(quality_input["acceptance_criteria"], "acceptance status", 40), "build_test":_text(quality_input["build_test"], "build test status", 40), "rework":_number(quality_input["rework"], "rework", True), "governance_violations":_number(quality_input["governance_violations"], "governance violations", True), "regression":quality_input["regression"]}
-    performance_input = _allowlist("performance", record["performance"], PERFORMANCE_FIELDS)
-    performance = {key:_number(value, key) for key,value in performance_input.items() if value is not None}
-    waiting_input = _allowlist("process waiting", record["process_waiting"], WAITING_FIELDS)
-    if set(waiting_input) != WAITING_FIELDS: raise ValidationError("waiting record is incomplete")
-    waiting = {key:_number(waiting_input[key], key) for key in WAITING_FIELDS}
-    friction_input = _allowlist("execution friction", record["execution_friction"], FRICTION_FIELDS)
-    if set(friction_input) != FRICTION_FIELDS: raise ValidationError("friction record is incomplete")
-    friction = {key:_number(friction_input[key], key, True) for key in FRICTION_FIELDS}
     unavailable_input = _allowlist("unavailable reason", record["unavailable_reason"], UNAVAILABLE_FIELDS)
     unavailable = {key:_text(value, "unavailable reason") for key,value in unavailable_input.items()}
+    performance_input = _allowlist("performance", record["performance"], PERFORMANCE_FIELDS)
+    performance = {key:_number(value, key) for key,value in performance_input.items() if value is not None}
+    waiting = _measurements("process waiting", record["process_waiting"], WAITING_FIELDS, unavailable)
+    friction = _measurements("execution friction", record["execution_friction"], FRICTION_FIELDS, unavailable, True)
     comparison_input = _allowlist("comparison class", record["comparison_class"], COMPARISON_FIELDS)
     if set(comparison_input) != COMPARISON_FIELDS: raise ValidationError("comparison class is incomplete")
     comparison = {key:_text(comparison_input[key], key, 80) for key in COMPARISON_FIELDS}
