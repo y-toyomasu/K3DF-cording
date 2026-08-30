@@ -111,3 +111,7 @@ Taskは`tasks/TEMPLATE.md`を基に作成し、次の8 Statusのいずれかを�
 - `AGENTS.md`は、Design Agentが変更理由・内容・影響を提示し、Product Ownerが明示承認し、Task Leadが変更Taskを公開した場合だけEngineering Agentが変更できる。他の承認を黙示的な変更承認として扱わない。
 - Git管理対象文書、Task記録、README、Source CodeのComment／Exampleおよび共有用Reportには、ユーザー名または作業環境構造を示すHost固有の絶対Pathを記録しない。WindowsのDrive／UNC Path、`/Users/<name>/...`、`/home/<name>/...`などはRepository相対Pathまたは`<workspace-root>`等のPlaceholderへ正規化する。Tool／Commandのローカル実行時だけ必要な絶対Pathは一時的に使用できるが、永続文書、Commitまたは共有記録へ転記しない。Commit前にstaged diffを確認し、Host固有Pathがあれば正規化するまでCommitしない。Container内Path、API Path、Volume内Pathなど、Host個人環境を示さずProductの実行契約として定義された絶対Pathは対象外とする。
 - Product Repositoryのコード、Docker構成、READMEまたは依存関係は、公開済みTaskの変更範囲に含まれる場合だけ変更する。
+
+
+# Testing
+- 各タスク内で実行されるテスト工程における python の実行においては、この Codex 実行環境に同梱された Python を優先して使用すること。
