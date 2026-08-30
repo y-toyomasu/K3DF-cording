@@ -528,3 +528,42 @@ Tool Registry、HTTP Executorおよび永続化前のTool Resultに秘密値解�
 ### Verification
 
 `T-00017`でRun-scoped Credential Store、`Set-Cookie`／既知JSON Field／既知HTML hidden inputの抽出、重複・上限処理、Metadata、Exact Origin／Cookie Scope、Secret非永続化、Header／Cookie Policy、JSON／Form／Text Body、Credential参照、Response／Blocked／Executor Error Redaction、Evidence、Planner入力、Dashboardおよび既存Method＋Path互換性を実装した。K3AT Agent 77件とDashboard 3件の自動Test、K3AT／Dashboard image Build、Desktop 1280pxおよび狭幅390pxのGUI確認に合格した。GUIではCredential Metadata 2件、既存Run／Finding／Strategy Brief表示、横Overflowなし、操作要素なしおよび合成生値Marker不在を確認した。外部Target、Kimi API Keyおよび実Credentialは使用していない。
+
+## D-00020: Single-demo-run CTF Referee with a shared validation seed
+
+- Status: Accepted
+- Date: 2026-08-30
+- Source: `F-00031`, `R-00016`, `R-00019`, `R-00030`〜`R-00035`, `R-00043`, `D-00018`
+
+### Context
+
+`D-00018`で採用したRun IDとRun TokenのFile配送およびread-only bind mountは、教育・展示向けの単一デモRunには運用負荷が大きい。mount元Fileが存在しない場合、Docker Composeが同名Directoryを生成し、K3AT Agentが起動時検証で停止する事象も発生した。Flag原本とCTF Ground Truthの分離は維持しながら、Flag提出の照合だけを簡素化する。
+
+### Decision
+
+- `D-00018`のRun ID／Run Token Fileによる提出認証部分を、単一デモRun向けの共有Seed方式へ置き換える。独立Referee、Flag原本の分離、constant-time比較、順不同、重複非加算、3件受理時の勝利、submission budgetおよびGround Truth分離は維持する。
+- K3ATとK3DFは環境変数`K3DF_CTF_DEMO_SEED`を使用し、未指定時は公開既定値`ValidationSeed`を使う。overrideする場合は両環境に同じ値を設定する。SeedはFlag生成、正解経路、Flag配置、Capability判断または実環境のSecurity境界に使用しない。
+- Run ID、Run Token、K3ATの`runtime/ctf/run/`依存および対応するPath環境変数とbind mountを廃止する。ProvisionerはFlag 1〜3とFlag 1 Hintだけを生成する。
+- Referee APIは`POST /ctf/referee/v1/submissions`、`GET /ctf/referee/v1/status`および`GET /health`とする。submissionとstatusはHeader `X-K3DF-CTF-Demo-Seed`で同じSeedを検証し、`/health`はSeed不要とする。
+- Seed Headerは1文字以上128文字以下のvisible ASCIIとする。欠落または不一致は`401`、上限超過または不正形式は`400`とし、照合はconstant-timeで行う。
+- Seed値はKimi、Tool Catalog、Tool Result、Evidence、Snapshot、Event、Dashboard、Referee State、Responseまたは通常Logへ出さない。Flag提出候補とFlag原本に対する既存の非露出境界も維持する。
+- Flag 1〜3の原本はK3DF RefereeだけがFlagごとに分離されたread-only Fileとして参照する。Flag原本をSeedまたは`.env`へ移さない。
+- `ValidationSeed`は公開されたValidation用既定値であり、Secret、Credentialまたは本番認証値として扱わない。`.env`の実FileはGit管理外を維持する。
+
+### Rationale
+
+単一デモRunの起動準備を、両Piで同じ環境変数を設定するだけに縮小する。公開Seedに強い認証を期待せず、CTF Ground TruthとFlag原本を攻撃側から分離する本来の境界へ運用上の注意を集中する。
+
+### Alternatives considered
+
+- Run IDとRun Token Fileの配送を維持する案は、デモ用途に対して準備と障害復旧が複雑なため採用しない。
+- Flag原本またはFlag生成SeedをK3ATと共有する案は、正解を攻撃側へ提供し、Flag分離要件に反するため採用しない。
+- Seedを安全な認証Credentialとして扱う案は、公開既定値と矛盾するため採用しない。
+
+### Consequences
+
+K3DF Referee、K3ATの`flag.submit` Client、両Compose、Nginx、Provisioner、Testおよび運用文書を更新する。実装はRepository間の契約を固定した小さなTaskへ分割し、実装後に確認済み構成だけを`ARCHITECTURE.md`へ反映する。
+
+### Verification
+
+未実装。`T-00026`〜`T-00029`で実装、統合検証および確認済みArchitecture反映を行う。

@@ -79,9 +79,11 @@
 - `R-00040`: Kimi K3には内部Service構成を事前提供せず、envで許可された範囲内を探索させる。
 - `R-00041`: K3AT Dashboardは、Strategy BriefをJSON構造の解読を必要としない、人間が読みやすい構造化表示で提供する。5分類、revision、更新時刻、Evidence IDおよびTool名の追跡可能性を維持し、読み取り専用性と秘密情報非表示を維持する。
 - `R-00042`: K3ATは、HTTP Responseから発見したCredential、Session Cookieおよび認証用TokenをRun-scoped Credential Storeで管理し、生値をKimi K3または永続状態へ公開せず、Credential参照IDを使ってHeader、CookieまたはRequest Bodyへ適用し、Login、Form送信、JSON APIおよび認証後Endpointを探索できる。
+- `R-00043`: K3ATとK3DFのCTF Flag提出連携は、共通の環境変数`K3DF_CTF_DEMO_SEED`を使用する。公開既定値は`ValidationSeed`とし、両環境で同じ値を使用する。SeedはFlag生成、正解経路、Flag配置またはCapability判断に使用しない。
 
 ## Feedback records
 
 - `F-00003`: Capabilityに応じてToolをLOCKEDまたはAVAILABLEにする方式は、ゲーム的で現実の環境に即していない。Toolは最初から提示し、利用結果は具体的なCredential、Session、接続状態および安全Policyによって決まるべきである。
 - `F-00012`: K3ATのTool拡張ロードマップを正式方針として採用する。実装済みToolはRun開始時からすべてKimi K3へ提示し、実装順序を攻撃経路またはTool解放順序として扱わない。Tool実行可否はTarget、Protocol、Credential、Session、Budgetなどの具体的条件で決定する。Raspberry PiのHost OS、Management SSH、Management Network、Host filesystemおよびDocker socketは対象にしない。
 - `F-00013`: Strategy Briefが長いJSONとして表示され、人間が内容や優先順位を把握しにくい。機能自体は受入れるが、可読性改善を独立Taskとして実施する。
+- `F-00031`: Run IDとTokenをK3DFからK3ATへFile配送してbind mountする運用はデモ用途として過剰である。mount元Fileが存在しない場合に同名Directoryが生成され、K3ATが起動できない事象も発生したため、簡素な共有Seed方式へ置き換える。
