@@ -4,6 +4,16 @@ def sample():
  import json
  from pathlib import Path
  return json.loads(Path("evaluation/fixtures/operational-sample.json").read_text(encoding="utf-8"))[0]
+def comparison_rows(candidate_times=(8,9,10)):
+ rows=[]
+ for wall_time in (10,11,12):
+  row=sample(); row["performance"]["wall_time_seconds"]=wall_time; rows.append(row)
+ for wall_time in candidate_times:
+  row=sample(); row["performance"]["wall_time_seconds"]=wall_time
+  row["configuration"]["po_selected"]["model"]="candidate-model"
+  row["configuration"]["actual"]["model"]="candidate-model"
+  rows.append(row)
+ return rows
 class OperationalTests(unittest.TestCase):
  def test_model_blind_and_band_boundaries(self):
   a=sample(); b=copy.deepcopy(a); b["configuration"]["actual"]["model"]="other"
@@ -14,15 +24,16 @@ class OperationalTests(unittest.TestCase):
   a["predicted_difficulty"]["total"]=10; self.assertTrue(difficulty(a["predicted_difficulty"])["calibration_warning"])
   a=sample(); del a["predicted_difficulty"]["total"]; del a["predicted_difficulty"]["band"]; self.assertFalse(difficulty(a["predicted_difficulty"])["calibration_warning"])
  def test_configuration_unknown_and_different_are_more_data(self):
-  a=sample(); a["configuration"]["actual"]={"unavailable_reason":"not available"}; self.assertEqual(evaluate([a]*3)["recommendation"]["decision"],"More Data Required")
-  rows=[sample(),sample(),sample()]; rows[1]["configuration"]["actual"]["model"]="other"; self.assertEqual(evaluate(rows)["recommendation"]["decision"],"More Data Required")
+  rows=comparison_rows(); rows[0]["configuration"]["actual"]={"unavailable_reason":"not available"}; self.assertEqual(evaluate(rows)["recommendation"]["decision"],"More Data Required")
+  rows=comparison_rows(); rows[-1]["comparison_class"]["role"]="other"; self.assertEqual(evaluate(rows)["recommendation"]["decision"],"More Data Required")
  def test_quality_regression_sample_count_and_version(self):
-  a=sample(); a["quality"]["regression"]=True; self.assertEqual(evaluate([a]*3)["recommendation"]["decision"],"More Data Required")
-  self.assertEqual(evaluate([sample(),sample()])["recommendation"]["decision"],"More Data Required")
-  a=sample(); a["predicted_difficulty"]["rubric_version"]="2"; self.assertEqual(evaluate([a]*3)["recommendation"]["decision"],"More Data Required")
+  rows=comparison_rows(); rows[-1]["quality"]["regression"]=True; self.assertEqual(evaluate(rows)["recommendation"]["decision"],"More Data Required")
+  rows=comparison_rows((8,9)); self.assertEqual(evaluate(rows)["recommendation"]["decision"],"More Data Required")
+  rows=comparison_rows(); rows[-1]["predicted_difficulty"]["rubric_version"]="2"; self.assertEqual(evaluate(rows)["recommendation"]["decision"],"More Data Required")
+  rows=comparison_rows(); rows[-1]["performance"]["wall_time_seconds"]=None; rows[-1]["unavailable_reason"]["wall_time_seconds"]="not available"; self.assertEqual(evaluate(rows)["recommendation"]["decision"],"More Data Required")
  def test_waiting_friction_unavailable_evidence_and_report(self):
   report=evaluate([sample()]); row=report["records"][0]
-  self.assertIn("active_seconds",row["process_waiting"]); self.assertIn("review_wait_seconds",row["process_waiting"]); self.assertIn("reverification",row["execution_friction"]); self.assertIn("tokens",row["unavailable_reason"]); self.assertEqual(row["realized"]["total"],12)
+  self.assertIn("active_seconds",row["process_waiting"]); self.assertIn("review_wait_seconds",row["process_waiting"]); self.assertIn("reverification",row["execution_friction"]); self.assertIn("time_to_first_tool_seconds",row["unavailable_reason"]); self.assertEqual(row["realized"]["total"],12)
   self.assertTrue(report["read_only"]); self.assertFalse(report["automatic_actions"])
  def test_prohibited_field_is_sanitized(self):
   a=sample(); a["prompt"]="sensitive"; row=evaluate([a])["records"][0]; self.assertEqual(row["status"],"unavailable"); self.assertNotIn("sensitive",str(row))
@@ -47,6 +58,23 @@ class OperationalTests(unittest.TestCase):
   a=sample(); a["unavailable_reason"]["retries"]="not available"; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
   a=sample(); a["process_waiting"]["human_wait_seconds"]=-1; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
   a=sample(); a["execution_friction"]["retries"]=-1; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
- def test_three_comparable_samples_retain_without_causal_claim(self):
-  recommendation=evaluate([sample(),sample(),sample()])["recommendation"]; self.assertEqual(recommendation["decision"],"Retain"); self.assertIn("observational only",recommendation["constraints"])
+ def test_performance_contract_requires_all_fields_and_matching_reasons(self):
+  row=evaluate([sample()])["records"][0]
+  self.assertIsNone(row["performance"]["time_to_first_tool_seconds"])
+  a=sample(); del a["performance"]["cost"]; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
+  a=sample(); del a["unavailable_reason"]["cost"]; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
+  a=sample(); a["performance"]["cost"]=1; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
+  a=sample(); a["performance"]["wall_time_seconds"]=-1; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
+ def test_cohort_evidence_and_change_candidate_path(self):
+  recommendation=evaluate(comparison_rows())["recommendation"]
+  self.assertEqual(recommendation["decision"],"Change Candidate")
+  self.assertEqual(len(recommendation["configuration_cohorts"]),2)
+  self.assertEqual([item["quality_passing_sample_count"] for item in recommendation["configuration_cohorts"]],[3,3])
+  self.assertLess(recommendation["metric_evaluation"]["candidate_median"],recommendation["metric_evaluation"]["baseline_median"])
+  self.assertIn("observational only",recommendation["constraints"])
+ def test_retain_requires_evaluated_performance_not_sample_count(self):
+  self.assertEqual(evaluate([sample(),sample(),sample()])["recommendation"]["decision"],"More Data Required")
+  recommendation=evaluate(comparison_rows((12,13,14)))["recommendation"]
+  self.assertEqual(recommendation["decision"],"Retain")
+  self.assertGreaterEqual(recommendation["metric_evaluation"]["candidate_median"],recommendation["metric_evaluation"]["baseline_median"])
 if __name__=="__main__": unittest.main()
