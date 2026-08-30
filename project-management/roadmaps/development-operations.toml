@@ -1,6 +1,19 @@
 schema_version = "1.0"
 
 [[workstreams]]
+id = "k3ops-dashboard"
+name = "K3Ops Dashboard"
+
+[[workstreams.items]]
+id = "product-roadmap-integration"
+horizon = "now"
+display_order = 10
+name = "Product Roadmap Integration"
+purpose = "Product Roadmapの独立正本とK3Ops表示を確立する"
+task_ids = ["T-00024", "T-00025"]
+references = ["F-00030", "project-management/roadmaps/product.toml", "project-management/k3ops-data-contract.md"]
+
+[[workstreams]]
 id = "agent-performance"
 name = "Agent Performance"
 

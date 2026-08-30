@@ -4,6 +4,8 @@
 
 この契約は、将来のK3Opsが`project-management/roadmaps/development-operations.toml`と`tasks/T-*.md`を安全かつ決定論的に読むための契約である。Parser、API、UIの実装契約ではない。
 
+Product正本は`project-management/roadmaps/product.toml`、Development Operations正本は`project-management/roadmaps/development-operations.toml`とする。両者はFile単位で独立Parseし、一方の不正で他方を失敗させず、Item IDの同名を暗黙mergeしない。既存のSchema、Size、Count、String、Horizon、Task ID、reference上限を両Roadmapへ適用する。Task Metadataは引き続きTask Fileだけを正本とし、RoadmapへStatus、Priority、Claim、Acceptance、Commit、Branch、集計値を保存しない。Product／Development OperationsのItem数、完了数、完了率、PLANNED、進行中、レビュー中、BLOCKED、Warningは別々に計算する。Product Roadmap ReferencesはAPI／UIへ表示しない。Secret、Credential、Token、Flag値、Hint本文、配置Path、正解経路、非公開思考をProduct Roadmapへ記録・表示しない。K3OpsはPRODUCT.md、DECISIONS.md、ARCHITECTURE.mdをmount、探索、Parseせず、Product Roadmap Fileだけを将来read-only mountできる。WarningはSource識別可能な正規化CodeだけとしRaw Error／Pathを出さない。
+
 ## Roadmap TOML
 
 - UTF-8の通常Fileだけを読み、Schema Versionは必須の文字列とする。
