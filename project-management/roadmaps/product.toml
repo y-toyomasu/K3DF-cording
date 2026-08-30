@@ -100,3 +100,15 @@ name="Live Evidence Integration"
 purpose="K3AT／Refereeの安全なEvidenceをK3DF Capability／Flag状態へ統合する"
 task_ids=[]
 references=["T-00014", "D-00018"]
+
+[[workstreams]]
+id="operator-experience"
+name="Operator Experience"
+[[workstreams.items]]
+id="kimi-k3-japanese-operator-output"
+horizon="next"
+display_order=10
+name="Kimi K3 Japanese Operator Output"
+purpose="機械処理契約と原文Evidenceを維持し、人間向けの探索・判断説明を日本語で提供する"
+task_ids=[]
+references=["F-00033"]
