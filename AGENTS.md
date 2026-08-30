@@ -86,7 +86,7 @@ Taskは`tasks/TEMPLATE.md`を基に作成し、次の8 Statusのいずれかを�
 - 同じファイルを変更する並行Taskは主要な変更PathをTaskへ記録し、Product Ownerが統合順を判断する。
 - Commit前にstaged diffを確認し、自Task外の変更が含まれる場合はCommitしない。他Taskまたは利用者の変更をCommit、Unstage、RevertまたはCleanupしない。`git add .`と`git add -A`の使用自体は禁じない。
 - Commit SubjectにはTask IDを含める。本文と`Why`、`What`、`Verify`見出しは任意とし、未実施の検証を成功と記載しない。
-- `GUI_REVIEW`または`ACCEPTANCE_REVIEW`のGit変更Taskは、VERIFY、CommitおよびREPORT後、レビュー公開のためにTask Branchをlocal mainへ統合できる。実装、検証およびCommitは引き続き専用worktree内で行い、Product Ownerが統合順を判断する。
+- `GUI_REVIEW`または`ACCEPTANCE_REVIEW`のGit変更Taskは、VERIFY、CommitおよびREPORT後、レビュー公開のためにTask Branchをlocal mainへ統合する。実装、検証およびCommitは引き続き専用worktree内で行い、Product Ownerが統合順を判断する。
 - レビュー公開の統合は、Task Branch、専用worktreeおよびlocal mainに想定外差分がなく、local mainがTask Branchへfast-forward可能な場合だけ実行し、統合CommitをTaskへ記録する。local mainが進行して直接統合できない場合は、必要に応じてlocal mainをTask Branchへmergeする。Conflictまたは内容変化があれば影響範囲を再検証し、統合不可能ならlocal mainを変更しない。
 - local mainとRemote mainは、レビュー中・受入れ待ちの変更を含み得る開発統合環境とする。GitHubへのPushはProduct Ownerだけが行い、Task LeadとEngineering AgentによるPush、`--amend`、rebaseおよびforce操作を禁止する。
 - Product Ownerの明示的な最終受入れ後、Engineering Agentが受入れ結果をTaskへ記録する。Git変更TaskはAccepted Branch HEADがlocal mainに含まれることを確認・記録してから`DONE`へ移す。レビュー公開時に統合済みであれば再統合は不要であり、未統合の場合は同じ統合条件でlocal mainへ統合する。Git管理外TaskはCommit対象外理由を記録し、受入れ後に`DONE`へ移せる。
