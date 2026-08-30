@@ -6,6 +6,8 @@
 - Source: <`R-xxxxx`、`A-xxxxx`、`D-xxxxx`、`F-xxxxx` のいずれかと、その参照先を最低1件記録する。関連Taskの `T-xxxxx` は追加参照として記録できるが、`T-xxxxx` 単独ではSourceにできない>
 - Recommended Codex Model: <model name>
 - Recommended Reasoning Effort: <low | medium | high | xhigh | max>
+- Planned Active Time: <`≤15 minutes` | `>15 minutes — exception approved`>
+- Time Box Exception: <none | 15分超過が必要な理由とProduct Ownerの明示承認>
 - Claimed By: <none | Engineering Agent identifier>
 - Claimed At: <none | ISO 8601 timestamp>
 
