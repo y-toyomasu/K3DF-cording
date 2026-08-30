@@ -80,6 +80,7 @@
 - `R-00041`: K3AT Dashboardは、Strategy BriefをJSON構造の解読を必要としない、人間が読みやすい構造化表示で提供する。5分類、revision、更新時刻、Evidence IDおよびTool名の追跡可能性を維持し、読み取り専用性と秘密情報非表示を維持する。
 - `R-00042`: K3ATは、HTTP Responseから発見したCredential、Session Cookieおよび認証用TokenをRun-scoped Credential Storeで管理し、生値をKimi K3または永続状態へ公開せず、Credential参照IDを使ってHeader、CookieまたはRequest Bodyへ適用し、Login、Form送信、JSON APIおよび認証後Endpointを探索できる。
 - `R-00043`: K3ATとK3DFのCTF Flag提出連携は、共通の環境変数`K3DF_CTF_DEMO_SEED`を使用する。公開既定値は`ValidationSeed`とし、両環境で同じ値を使用する。SeedはFlag生成、正解経路、Flag配置またはCapability判断に使用しない。
+- `R-00044`: Flag 1〜3の原本はFlagごとに分離されたDocker named volumeで管理する。生成処理だけが各Volumeをread-writeで使用し、Refereeは3個すべてをread-only、各Challenge Consumerは担当する1個だけをread-onlyで使用する。Flag生成、既存値を維持する初回確認、値を表示しない状態確認、および人間が明示実行する3個一括再生成は`K3Defnder-K3Atacker-infra`の独立した運用Scriptが担う。通常のContainer再起動では再生成せず、再生成はK3AT停止確認、K3DFのReferee／Consumer停止、対象Volume限定、Referee状態初期化、形式・一意性・所有権・権限検証および成功後の再起動を一体の管理操作として行う。Flag値、Seed、HintをCLI引数、標準出力、Log、GitまたはSecret用途の環境変数へ出さない。
 
 ## Feedback records
 
@@ -87,3 +88,5 @@
 - `F-00012`: K3ATのTool拡張ロードマップを正式方針として採用する。実装済みToolはRun開始時からすべてKimi K3へ提示し、実装順序を攻撃経路またはTool解放順序として扱わない。Tool実行可否はTarget、Protocol、Credential、Session、Budgetなどの具体的条件で決定する。Raspberry PiのHost OS、Management SSH、Management Network、Host filesystemおよびDocker socketは対象にしない。
 - `F-00013`: Strategy Briefが長いJSONとして表示され、人間が内容や優先順位を把握しにくい。機能自体は受入れるが、可読性改善を独立Taskとして実施する。
 - `F-00031`: Run IDとTokenをK3DFからK3ATへFile配送してbind mountする運用はデモ用途として過剰である。mount元Fileが存在しない場合に同名Directoryが生成され、K3ATが起動できない事象も発生したため、簡素な共有Seed方式へ置き換える。
+- `F-00032`: K3DFのCTF runtimeをProvisioningせずにComposeを起動した結果、Flag 1〜3、Run IDおよびRun TokenのHost bind mount元がroot所有のDirectoryとして自動生成され、Refereeの通常File検査と`nobody`による所有権境界に適合せず再起動ループになった。Host bind方式を廃止し、生成成功後だけRefereeを起動できるNamed Volume運用へ置き換える。
+- `F-00033`: Kimi K3の人間向け自然言語をSystem Promptで日本語に指定し、Strategy Brief、探索状況、Evidenceに基づく短い判断説明およびDashboard向け説明を日本語で提供する。判断理由は非公開思考またはChain-of-Thoughtではなく、Evidence IDと結論を結ぶ簡潔なOperator向けRationaleとする。Tool名、JSON Field、HTTP Method、Path、Evidence ID、Credential IDおよびStatusなど機械処理用Dataは変更せず、原文Evidenceを翻訳で改変しない。必要な日本語要約は原文と別Field／表示へ分離する。標準的なSecurity用語、識別子、Protocol名、製品名およびCodeは英語のまま許容し、日本語不遵守、過度な混在言語および文字化けの扱いは将来実装Taskで定義する。既存Planner、Tool Call、Evidence検証およびSecret Redactionとの互換性を維持し、Dashboard固定英語UI文言の全面日本語化は別途判断する。

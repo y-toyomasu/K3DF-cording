@@ -567,3 +567,45 @@ K3DF Referee、K3ATの`flag.submit` Client、両Compose、Nginx、Provisioner、
 ### Verification
 
 未実装。`T-00026`〜`T-00029`で実装、統合検証および確認済みArchitecture反映を行う。
+
+## D-00021: Operator-managed per-flag volumes and private-network Referee
+
+- Status: Accepted
+- Date: 2026-08-30
+- Source: `R-00016`, `R-00017`, `R-00019`, `R-00030`〜`R-00035`, `R-00043`, `R-00044`, `F-00032`, `D-00018`, `D-00020`
+
+### Context
+
+現行K3DFではFlag原本、Run IDおよびRun TokenをHost Fileからbind mountする。Provisioning前にComposeを起動すると、不足しているmount元がroot所有のDirectoryとして生成され、Refereeが通常File検査で異常終了し、再起動を繰り返す。Host上で生成した`0600` FileとContainer内の`nobody`の所有者も一致せず、単純な権限変更ではSecret分離と読取り可能性を同時に満たしにくい。`D-00020`の共有Seedは公開されたDemo連携キーであり、Token認証の代替となるSecurity境界ではない。
+
+### Decision
+
+- `K3DF_CTF_DEMO_SEED`はK3ATとK3DFの単一Demo Runを対応付ける非秘密の検証値として使用する。Header照合は誤接続検出のため維持できるが、認証またはSecurity境界として扱わない。Run Token Secret Fileは廃止し、Referee APIはK3DFのprivate Network境界、限定されたNginx Path、接続先Policyおよび非公開のReferee Container Portで保護する。
+- Flag原本は`k3df-ctf-flag-1`、`k3df-ctf-flag-2`、`k3df-ctf-flag-3`の3個のDocker named volumeへ分離する。生成処理だけがread-writeでmountし、Refereeは3個すべてをread-only、各Challenge Consumerは担当する1個だけをread-onlyでmountする。単一Consumerへ複数Flagを渡さず、Docker socketを渡さない。
+- Flag 1 HintはFlag原本Volumeと分離して管理し、Refereeへmountしない。Refereeの受理状態はFlag Volumeと分離した`k3df-referee-state` named volumeに保存する。
+- 固定IdentityはRefereeをUID/GID `10001:10001`、Flag reader GroupをGID `20001`とする。Flag Fileは`root:20001`、Mode `0440`とし、Refereeと各Consumerには必要な補助Groupと担当Volumeだけを付与する。Referee stateは`10001:10001`、Mode `0700`とする。起動時に通常File、形式、Size、一意性、所有者、Modeおよび書込み不可を検査し、不適合時はfail closedとする。
+- Flag生成とLifecycle操作は`K3Defnder-K3Atacker-infra` Repositoryの通常Setupから分離した`operations` Scriptが担う。`ensure`は3 Volumeがすべて未生成の場合だけ暗号学的乱数によるFlagを一組として生成し、正常な既存値を維持する。`status`は値を表示せず、存在、Generation IDおよび検証結果だけを返す。`rotate`は人間の明示確認を必要とし、Hot reloadとして扱わない。
+- `rotate`はK3AT停止済みの確認、K3DFのReferee／Flag Consumer停止、対象Volume名と用途の検証、再確認、3 Flag VolumeとReferee stateだけの再作成、3個一括生成、形式・一意性・所有者・Mode検証、成功後のK3DF再起動を順に行う。通常のOS／Compose／Container再起動ではFlagを再生成しない。失敗時はRefereeを起動しない。
+- `docker compose down -v`を使用せず、無関係なDatabase、Application Stateまたは他Volumeを作成、削除、変更しない。正常な既存Flagを暗黙に上書きせず、一部だけ存在する状態、Directory、Symlinkまたは特殊Fileは異常として停止する。
+- Flag値、共有Seed、Hint本文をCLI引数、標準出力、通常Log、Git、Compose設定またはSecret用途の環境変数へ出さない。Generation ID、対象を限定した操作結果および値を含まない検証結果だけを表示できる。FlagはSeedから生成せず、正解経路、配置またはCapability判断にもSeedを使用しない。
+- K3DF Composeは個別Host File bind mountを廃止し、必要なexternal named volumeが存在しない場合は起動前または起動時に明確に失敗させる。Provisioning成功後だけRefereeを起動する。未実装の構成は検証完了まで`ARCHITECTURE.md`へ現行事実として記載しない。
+
+### Rationale
+
+Dockerが管理する分離Volumeと固定Identityにより、Host固有Path、File所有者差異および不足PathのDirectory化を避ける。生成・再生成をInfrastructureの明示的な管理操作へ集約し、通常再起動の安定性、Challenge間のFlag分離および事故時の安全な復旧を両立する。
+
+### Alternatives considered
+
+- Dockerfile Build時にFlagを生成する案は、Image LayerへFlagを残し、Build間で値を固定するため採用しない。
+- RefereeのEntryPointでHost mount元を生成する案は、mount解決後では遅く、Refereeへ不要な書込み権限を与えるため採用しない。
+- 3個のFlagを単一Volumeへ格納する案は、1個のChallenge侵害で他Flagも読めるため採用しない。
+- Host bind Fileを権限調整して維持する案は、Host／Container間の所有者差異と不足Path生成を運用へ残すため採用しない。
+- 稼働中にFlagだけを差し替えるHot reload案は、Referee stateおよびK3AT実行中の状態と不整合になるため採用しない。
+
+### Consequences
+
+K3DFはReferee Identity、Flag／state mount、Compose、Network公開、起動時検査およびTestを更新する。`K3Defnder-K3Atacker-infra`はFlag Volumeを管理する独立運用Script、確認手順および安全なTestを追加する。K3ATの共有Seed Client変更は`T-00027`で扱い重複させない。旧Host Artifactを前提とする`T-00028`と旧統合検証を前提とする`T-00029`は、このDecisionに基づく新規Taskで置き換え、公開しない。
+
+### Verification
+
+未実装。K3DFのNamed Volume消費、InfrastructureのFlag Lifecycle操作およびRepository間統合検証を後続Taskで実施し、確認済み構成だけを`ARCHITECTURE.md`へ反映する。
