@@ -50,9 +50,13 @@ Difficulty Rubric v1.0はChange Surface、Uncertainty、Integration、Verificati
 
 Difficulty計算はModel、Reasoning、wall-clock、Tool Call、Retry、Qualityを入力に使わない。Safety Risk=3またはUncertainty=3はRecommendation Safety Floorとして別扱いにできる。Evaluatorは同じRubricを再計算し差をCalibration Warningとして返すが、差戻し、自動修正、BLOCKEDにしない。
 
-Operational RecordはConfiguration、Difficulty、Quality、Performance、Process/Waiting、Execution Friction、Unavailable Reasonを分離する。Model／ReasoningはTask推奨、Product Owner選択、環境確認済み実値および各Sourceを別Fieldにし、取得不能値は推測せずunavailable_reasonとする。Active作業とDependency／Human／Review待ちは混合しない。Quality合格RunだけをPerformance根拠に用いる。Task本文、Prompt、Command/Error、絶対Path、Secret、Credential、Token、Flag、認証情報、実行秘密、非公開思考をRecord／Reportへ含めない。
+Operational RecordはMeasurement Identity、Configuration、Difficulty、Quality、Performance、Process/Waiting、Execution Friction、Unavailable Reasonを分離する。Measurement IdentityはBenchmark ID、Snapshot Version、Prompt VersionおよびRunで使用した`AGENTS.md`内容を一意に特定する`agents_revision`を持つ。Model／ReasoningはTask推奨、Product Owner選択、環境確認済み実値および各Sourceを別Fieldにし、取得不能値は推測せずunavailable_reasonとする。Active作業とDependency／Human／Review待ちは混合しない。Quality合格RunだけをPerformance根拠に用いる。Task本文、Prompt、Command/Error、絶対Path、Secret、Credential、Token、Flag、認証情報、実行秘密、非公開思考をRecord／Reportへ含めない。
+
+Experiment Axisは`model_reasoning`または`agents_revision`とし、一度の比較で一要因だけを変更する。Model／Reasoning比較ではBenchmark ID、Snapshot Version、Prompt Versionおよび`agents_revision`を固定する。`AGENTS.md`比較ではBenchmark ID、Snapshot Version、Prompt Version、実Modelおよび実Reasoningを固定する。複数Axisが変わるRunは因果比較の根拠にしない。Quality不合格RunはPerformance改善根拠から除外するが破棄せず、Regressionとして報告する。Wall-clockに加えてRetry、再検証、REPORT後手戻りおよびGovernance違反を副指標として示し、取得不能値を推測しない。
 
 RecommendationはRetain、Change Candidate、More Data Requiredだけとし、比較Class、Sample数、Quality条件、Configuration、Difficulty Range、指標、根拠、Confidence、制約を示す。同一ClassのQuality合格Sampleが3未満、比較不能、品質Regression、設定不明またはRubric Version不一致ならMore Data Requiredとする。自動的にTask推奨、Agent設定、AGENTS.mdまたはModelを変更しない。
+
+最初のOperational Measurement PilotはBaseline策定ではなく測定経路の受入れとする。同一のread-only固定Benchmark、Snapshot、Promptおよび`agents_revision`で、Baseline `gpt-5.6-terra / medium` 1 RunとCandidate `gpt-5.6-luna / low` 1 RunをProduct Ownerが起動する。記録、Sanitize、Configuration cohort、Quality、MetricおよびReport生成をEnd-to-End確認し、各cohort 1件のためRecommendationは`More Data Required`とする。この2 Runから性能優劣、Model推奨または現行Baselineを確定しない。実Baseline策定は別Taskで各cohort 3件以上を用いる。
 
 ## Roadmap
 
@@ -78,7 +82,7 @@ K3OpsへRole・Task種別・Model・Reasoning別のWall-clock中央値、Tool Ca
 
 ## Performance Report Contract
 
-ReportはConfiguration（AGENTS／Playbook Version、Model、Reasoning Effort、Benchmark、Runs）、Quality（Result、Acceptance Criteria、Build/Test、Rework、Governance Violations）、Performance（Median Wall Time、Time to First Tool、Tool Calls、Retries、Input/Output Tokens、Cost）、Comparison（Baselineとの差分）、Bottlenecks、Recommendation（Adopt／Reject／More Data Required）、Confidenceを分離して記録する。
+ReportはMeasurement Identity（Benchmark ID、Snapshot Version、Prompt Version、`agents_revision`）、Experiment Axis、Configuration（Model、Reasoning Effort、Runs）、Quality（Result、Acceptance Criteria、Build/Test、Rework、Governance Violations）、Performance（Median Wall Time、Time to First Tool、Tool Calls、Retries、Input/Output Tokens、Cost）、Process／Execution Friction（再検証、REPORT後手戻り、Waiting）、Comparison（Baselineとの差分）、Bottlenecks、Recommendation（Retain／Change Candidate／More Data Required）、Confidenceを分離して記録する。
 
 ## Change Governance
 
