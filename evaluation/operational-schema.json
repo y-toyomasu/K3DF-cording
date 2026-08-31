@@ -2,6 +2,7 @@
   "version": "1.0",
   "unknown_fields": "reject",
   "text": {"minimum_length": 1, "maximum_length": 160},
+  "measurement_identity": {"required": true, "fields_required": ["benchmark_id", "snapshot_version", "prompt_version", "agents_revision"], "identifier_pattern": "ASCII alphanumeric followed by ASCII alphanumeric, dot, underscore, or hyphen", "identifier_maximum_length": 80, "agents_revision": "40 or 64 lowercase hexadecimal Git object ID; never AGENTS.md content or a host path"},
   "configuration": {"sources": ["recommended", "po_selected", "actual"], "fields": ["model", "reasoning", "source", "unavailable_reason"], "model_reasoning_source_maximum_length": 80},
   "difficulty": {"sections": ["predicted_difficulty", "realized_difficulty"], "fields": ["rubric_version", "axes", "total", "band", "confidence", "structural_evidence"], "rubric_version": "1.0", "axes": ["change_surface", "uncertainty", "integration", "verification", "safety_risk", "coordination"], "axis_type": "integer", "axis_range": [0, 3], "total_type": "integer", "total_range": [0, 18], "confidence": ["low", "medium", "high"], "realized_evidence_items": [1, 8], "bands": {"Routine": [0, 3], "Low": [4, 7], "Medium": [8, 11], "High": [12, 15], "Very High": [16, 18]}},
   "quality": {"fields": ["passed", "acceptance_criteria", "build_test", "rework", "governance_violations", "regression"], "counts": "non-negative integer"},

@@ -17,6 +17,8 @@ Benchmark定義は`benchmarks.json`、Report Contractは`report_contract.json`�
 
 Schemaは`operational-schema.json`、合成Fixtureは`fixtures/operational-sample.json`です。Rubric v1.0はChange Surface、Uncertainty、Integration、Verification、Safety Risk、Coordinationを0〜3で採点し、EvaluatorがTotalとBandを再計算します。Model、Reasoning、PerformanceおよびQualityはDifficulty Scoreに使用しません。
 
+Measurement Identityは`benchmark_id`、`snapshot_version`、`prompt_version`および`agents_revision`の4 Fieldを必須とします。最初の3 Fieldは固定Benchmark入力とPrompt条件を識別する80文字以下の非秘密Identifierです。`agents_revision`はRunで使用した`AGENTS.md`内容のGit object IDを40桁または64桁の小文字16進数で記録し、本文、Host固有Pathまたは取得Commandを保存しません。EvaluatorはIdentityを生成せず、Record Producerが提供した値を検証して許可FieldだけからReportへ再構築します。
+
 ConfigurationはTask推奨、Product Owner選択、環境確認済み実値をModel／Reasoning／Source付きで別々に記録します。取得不能値は推測せず、Fieldの`unavailable_reason`へ理由を記録します。Performance、WaitingまたはExecution Frictionの全Fieldは必須で、値は非負数または`null`です。`null`では`unavailable_reason`へ同名Fieldの理由を必ず記録し、実測値と理由の併存は拒否します。実測`0`は取得済みの0だけを表し、未取得値の代用には使用しません。Active作業時間とHuman、Dependency、Reviewの各待ち時間を分離し、Tool Error、Retry、再検証、REPORT後手戻りはExecution Frictionへ記録します。
 
 生RecordはGit管理外の`evaluation/raw-records/`だけに置きます。Task本文、Prompt、Command／Error本文、Host固有Path、Secret、Credential、Token、Flag、認証情報、実行秘密、非公開思考を収集・表示・永続化しません。

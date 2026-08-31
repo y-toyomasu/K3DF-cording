@@ -15,6 +15,16 @@ def comparison_rows(candidate_times=(8,9,10)):
   rows.append(row)
  return rows
 class OperationalTests(unittest.TestCase):
+ def test_measurement_identity_contract_and_report(self):
+  row=evaluate([sample()])["records"][0]
+  self.assertEqual(row["measurement_identity"],sample()["measurement_identity"])
+  a=sample(); del a["measurement_identity"]; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
+  a=sample(); del a["measurement_identity"]["benchmark_id"]; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
+  a=sample(); a["measurement_identity"]["unknown"]="value"; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
+  a=sample(); a["measurement_identity"]["snapshot_version"]=""; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
+  a=sample(); a["measurement_identity"]["prompt_version"]="x"*81; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
+  a=sample(); a["measurement_identity"]["benchmark_id"]=1; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
+  a=sample(); a["measurement_identity"]["agents_revision"]="AGENTS.md body"; report=evaluate([a]); self.assertEqual(report["records"][0]["status"],"unavailable"); self.assertNotIn("AGENTS.md body",str(report))
  def test_model_blind_and_band_boundaries(self):
   a=sample(); b=copy.deepcopy(a); b["configuration"]["actual"]["model"]="other"
   self.assertEqual(difficulty(a["predicted_difficulty"])["total"],difficulty(b["predicted_difficulty"])["total"])

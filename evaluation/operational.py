@@ -14,7 +14,8 @@ BANDS = ((3, "Routine"), (7, "Low"), (11, "Medium"), (15, "High"), (18, "Very Hi
 CONFIDENCE = {"low", "medium", "high"}
 DECISIONS = {"Retain", "Change Candidate", "More Data Required"}
 PROHIBITED_FIELDS = {"task_body", "prompt", "command", "error", "host_path", "secret", "credential", "token", "flag", "authentication", "execution_secret", "private_reasoning"}
-REQUIRED_SECTIONS = {"comparison_class", "configuration", "predicted_difficulty", "realized_difficulty", "quality", "performance", "process_waiting", "execution_friction", "unavailable_reason"}
+REQUIRED_SECTIONS = {"measurement_identity", "comparison_class", "configuration", "predicted_difficulty", "realized_difficulty", "quality", "performance", "process_waiting", "execution_friction", "unavailable_reason"}
+IDENTITY_FIELDS = {"benchmark_id", "snapshot_version", "prompt_version", "agents_revision"}
 CONFIG_FIELDS = {"model", "reasoning", "source", "unavailable_reason"}
 QUALITY_FIELDS = {"passed", "acceptance_criteria", "build_test", "rework", "governance_violations", "regression"}
 PERFORMANCE_FIELDS = {"wall_time_seconds", "time_to_first_tool_seconds", "tool_calls", "input_tokens", "output_tokens", "cost"}
@@ -122,9 +123,26 @@ def _quality_passes(quality: dict[str, Any]) -> bool:
     return (quality["passed"] and not quality["regression"] and quality["acceptance_criteria"] == "pass"
             and quality["build_test"] == "pass" and quality["governance_violations"] == 0)
 
+def _measurement_identity(value: Any) -> dict[str, str]:
+    source = _allowlist("measurement identity", value, IDENTITY_FIELDS)
+    if set(source) != IDENTITY_FIELDS:
+        raise ValidationError("measurement identity is incomplete")
+    result = {}
+    for key in ("benchmark_id", "snapshot_version", "prompt_version"):
+        text = _text(source[key], "measurement identity", 80)
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}", text):
+            raise ValidationError("measurement identity is invalid")
+        result[key] = text
+    revision = _text(source["agents_revision"], "agents revision", 64)
+    if not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", revision):
+        raise ValidationError("agents revision is invalid")
+    result["agents_revision"] = revision
+    return result
+
 def _validate(record: dict[str, Any]) -> dict[str, Any]:
     _reject_prohibited(record)
     if not isinstance(record, dict) or set(record) != REQUIRED_SECTIONS: raise ValidationError("record sections are invalid")
+    measurement_identity = _measurement_identity(record["measurement_identity"])
     config, config_complete = _configuration(record["configuration"])
     predicted, realized = difficulty(record["predicted_difficulty"]), difficulty(record["realized_difficulty"])
     evidence = record["realized_difficulty"].get("structural_evidence")
@@ -144,7 +162,7 @@ def _validate(record: dict[str, Any]) -> dict[str, Any]:
     recommended_cohort = _configuration_identity(config, "recommended")
     configuration_cohort = _configuration_identity(config, "actual")
     metrics_complete = performance[PRIMARY_METRIC] is not None
-    return {"comparison_class":comparison, "configuration":config, "configuration_complete":config_complete, "predicted":predicted, "realized":realized,
+    return {"measurement_identity":measurement_identity, "comparison_class":comparison, "configuration":config, "configuration_complete":config_complete, "predicted":predicted, "realized":realized,
             "prediction_error":realized["total"]-predicted["total"], "quality":quality, "performance":performance,
             "process_waiting":waiting, "execution_friction":friction, "unavailable_reason":unavailable, "realized_evidence":evidence,
             "recommended_cohort":recommended_cohort, "configuration_cohort":configuration_cohort, "metrics_complete":metrics_complete}
