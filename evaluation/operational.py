@@ -14,8 +14,11 @@ BANDS = ((3, "Routine"), (7, "Low"), (11, "Medium"), (15, "High"), (18, "Very Hi
 CONFIDENCE = {"low", "medium", "high"}
 DECISIONS = {"Retain", "Change Candidate", "More Data Required"}
 PROHIBITED_FIELDS = {"task_body", "prompt", "command", "error", "host_path", "secret", "credential", "token", "flag", "authentication", "execution_secret", "private_reasoning"}
-REQUIRED_SECTIONS = {"measurement_identity", "comparison_class", "configuration", "predicted_difficulty", "realized_difficulty", "quality", "performance", "process_waiting", "execution_friction", "unavailable_reason"}
+REQUIRED_SECTIONS = {"measurement_identity", "experiment_axis", "comparison_class", "configuration", "predicted_difficulty", "realized_difficulty", "quality", "performance", "process_waiting", "execution_friction", "unavailable_reason"}
 IDENTITY_FIELDS = {"benchmark_id", "snapshot_version", "prompt_version", "agents_revision"}
+EXPERIMENT_FIELDS = {"name", "baseline", "candidate"}
+EXPERIMENT_AXES = {"model_reasoning", "agents_revision"}
+MODEL_REASONING_FIELDS = {"model", "reasoning"}
 CONFIG_FIELDS = {"model", "reasoning", "source", "unavailable_reason"}
 QUALITY_FIELDS = {"passed", "acceptance_criteria", "build_test", "rework", "governance_violations", "regression"}
 PERFORMANCE_FIELDS = {"wall_time_seconds", "time_to_first_tool_seconds", "tool_calls", "input_tokens", "output_tokens", "cost"}
@@ -24,6 +27,7 @@ FRICTION_FIELDS = {"tool_errors", "retries", "reverification", "post_report_rewo
 COMPARISON_FIELDS = {"role", "task_type", "difficulty_band", "risk", "agents_version"}
 UNAVAILABLE_FIELDS = PERFORMANCE_FIELDS | WAITING_FIELDS | FRICTION_FIELDS | {"tokens", "waiting_seconds", "actual_model", "actual_reasoning"}
 PRIMARY_METRIC = "wall_time_seconds"
+EVIDENCE_METRICS = (PRIMARY_METRIC, "retries", "reverification", "post_report_rework", "governance_violations")
 MIN_COHORT_SAMPLES = 3
 
 class ValidationError(ValueError):
@@ -139,10 +143,34 @@ def _measurement_identity(value: Any) -> dict[str, str]:
     result["agents_revision"] = revision
     return result
 
+def _experiment_axis(value: Any) -> dict[str, Any]:
+    source = _allowlist("experiment axis", value, EXPERIMENT_FIELDS)
+    if set(source) != EXPERIMENT_FIELDS or source.get("name") not in EXPERIMENT_AXES:
+        raise ValidationError("experiment axis is invalid")
+    name = source["name"]
+    if name == "model_reasoning":
+        values = []
+        for role in ("baseline", "candidate"):
+            item = _allowlist("experiment model reasoning", source[role], MODEL_REASONING_FIELDS)
+            if set(item) != MODEL_REASONING_FIELDS:
+                raise ValidationError("experiment model reasoning is incomplete")
+            values.append({key:_text(item[key], "experiment model reasoning", 80) for key in ("model", "reasoning")})
+    else:
+        values = []
+        for role in ("baseline", "candidate"):
+            revision = _text(source[role], "experiment agents revision", 64)
+            if not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", revision):
+                raise ValidationError("experiment agents revision is invalid")
+            values.append(revision)
+    if values[0] == values[1]:
+        raise ValidationError("experiment axis values must differ")
+    return {"name":name, "baseline":values[0], "candidate":values[1]}
+
 def _validate(record: dict[str, Any]) -> dict[str, Any]:
     _reject_prohibited(record)
     if not isinstance(record, dict) or set(record) != REQUIRED_SECTIONS: raise ValidationError("record sections are invalid")
     measurement_identity = _measurement_identity(record["measurement_identity"])
+    experiment_axis = _experiment_axis(record["experiment_axis"])
     config, config_complete = _configuration(record["configuration"])
     predicted, realized = difficulty(record["predicted_difficulty"]), difficulty(record["realized_difficulty"])
     evidence = record["realized_difficulty"].get("structural_evidence")
@@ -162,18 +190,30 @@ def _validate(record: dict[str, Any]) -> dict[str, Any]:
     recommended_cohort = _configuration_identity(config, "recommended")
     configuration_cohort = _configuration_identity(config, "actual")
     metrics_complete = performance[PRIMARY_METRIC] is not None
-    return {"measurement_identity":measurement_identity, "comparison_class":comparison, "configuration":config, "configuration_complete":config_complete, "predicted":predicted, "realized":realized,
+    return {"measurement_identity":measurement_identity, "experiment_axis":experiment_axis, "comparison_class":comparison, "configuration":config, "configuration_complete":config_complete, "predicted":predicted, "realized":realized,
             "prediction_error":realized["total"]-predicted["total"], "quality":quality, "performance":performance,
             "process_waiting":waiting, "execution_friction":friction, "unavailable_reason":unavailable, "realized_evidence":evidence,
             "recommended_cohort":recommended_cohort, "configuration_cohort":configuration_cohort, "metrics_complete":metrics_complete}
 
-def _cohort_summary(items: list[dict[str, Any]]) -> dict[str, Any]:
+def _metric_value(item: dict[str, Any], metric: str) -> Any:
+    if metric == PRIMARY_METRIC: return item["performance"][metric]
+    if metric == "governance_violations": return item["quality"][metric]
+    return item["execution_friction"][metric]
+
+def _cohort_summary(items: list[dict[str, Any]], axis_value: Any = None, role: str | None = None) -> dict[str, Any]:
     quality_items = [item for item in items if _quality_passes(item["quality"])]
-    metric_values = [item["performance"][PRIMARY_METRIC] for item in quality_items if item["performance"][PRIMARY_METRIC] is not None]
-    return {"configuration":items[0]["configuration_cohort"], "sample_count":len(items),
-            "quality_passing_sample_count":len(quality_items), "quality_regression_count":sum(item["quality"]["regression"] for item in items),
-            "metric_sample_count":len(metric_values), "performance_metric":{"name":PRIMARY_METRIC, "direction":"lower_is_better",
-            "median":statistics.median(metric_values) if metric_values else None}}
+    metrics = {}
+    for metric in EVIDENCE_METRICS:
+        values = [_metric_value(item, metric) for item in quality_items]
+        measured = [value for value in values if value is not None]
+        reasons = sorted({item["unavailable_reason"][metric] for item in quality_items
+                          if _metric_value(item, metric) is None and metric in item["unavailable_reason"]})
+        metrics[metric] = {"sample_count":len(measured), "unavailable_count":len(values)-len(measured),
+                           "unavailable_reasons":reasons, "median":statistics.median(measured) if measured else None}
+    return {"role":role, "axis_value":axis_value, "configuration":items[0]["configuration_cohort"], "sample_count":len(items),
+            "quality_passing_sample_count":len(quality_items), "quality_regression_count":len(items)-len(quality_items),
+            "metrics":metrics, "metric_sample_count":metrics[PRIMARY_METRIC]["sample_count"],
+            "performance_metric":{"name":PRIMARY_METRIC, "direction":"lower_is_better", "median":metrics[PRIMARY_METRIC]["median"]}}
 
 def evaluate(records: list[dict[str, Any]]) -> dict[str, Any]:
     rendered, valid = [], []
@@ -190,31 +230,77 @@ def evaluate(records: list[dict[str, Any]]) -> dict[str, Any]:
     if invalid_records: require_more_data("one or more records are unavailable or use an incompatible rubric")
     if any(not item["configuration_complete"] for item in valid): require_more_data("configuration is unavailable")
     if any(item["predicted"]["calibration_warning"] or item["realized"]["calibration_warning"] for item in valid): require_more_data("calibration mismatch is present")
-    if any(item["quality"]["regression"] for item in valid): require_more_data("quality regression is present")
+    if any(not _quality_passes(item["quality"]) for item in valid): require_more_data("quality regression is present")
     classes = {json.dumps(item["comparison_class"],sort_keys=True) for item in valid}
     comparison_class = valid[0]["comparison_class"] if len(classes) == 1 and valid else None
     if len(classes) != 1: require_more_data("comparison class is unavailable or inconsistent")
-    recommended = {json.dumps(item["recommended_cohort"],sort_keys=True) for item in valid if item["recommended_cohort"] is not None}
-    baseline_configuration = json.loads(next(iter(recommended))) if len(recommended) == 1 else None
-    if len(recommended) != 1: require_more_data("recommended configuration is unavailable or inconsistent")
-    grouped: dict[str, list[dict[str, Any]]] = {}
+    axis_definitions = {json.dumps(item["experiment_axis"],sort_keys=True) for item in valid}
+    experiment_axis = valid[0]["experiment_axis"] if len(axis_definitions) == 1 and valid else None
+    if len(axis_definitions) != 1: require_more_data("experiment axis is unavailable or inconsistent")
+
+    configuration_groups: dict[str, list[dict[str, Any]]] = {}
     for item in valid:
         if item["configuration_cohort"] is not None:
             key = json.dumps(item["configuration_cohort"],sort_keys=True)
-            grouped.setdefault(key, []).append(item)
-    cohort_summaries = [_cohort_summary(grouped[key]) for key in sorted(grouped)]
-    baseline_key = json.dumps(baseline_configuration,sort_keys=True) if baseline_configuration is not None else None
-    candidate_keys = [key for key in grouped if key != baseline_key]
-    candidate_key = candidate_keys[0] if len(candidate_keys) == 1 else None
-    candidate_configuration = json.loads(candidate_key) if candidate_key is not None else None
-    if baseline_key not in grouped: require_more_data("baseline cohort is unavailable")
-    if len(candidate_keys) != 1: require_more_data("exactly one candidate cohort is required")
-    baseline_summary = next((item for item in cohort_summaries if item["configuration"] == baseline_configuration), None)
-    candidate_summary = next((item for item in cohort_summaries if item["configuration"] == candidate_configuration), None)
+            configuration_groups.setdefault(key, []).append(item)
+    configuration_summaries = [_cohort_summary(configuration_groups[key]) for key in sorted(configuration_groups)]
+
+    experiment_groups: dict[str, list[dict[str, Any]]] = {}
+    fixed_conditions: dict[str, Any] | None = None
+    baseline_configuration = candidate_configuration = None
+    if experiment_axis is not None:
+        axis_name = experiment_axis["name"]
+        baseline_value, candidate_value = experiment_axis["baseline"], experiment_axis["candidate"]
+        if axis_name == "model_reasoning":
+            identities = {json.dumps(item["measurement_identity"],sort_keys=True) for item in valid}
+            if len(identities) != 1: require_more_data("model_reasoning comparison changed a fixed measurement identity")
+            fixed_conditions = valid[0]["measurement_identity"] if len(identities) == 1 and valid else None
+            recommended = {json.dumps(item["recommended_cohort"],sort_keys=True) for item in valid if item["recommended_cohort"] is not None}
+            if recommended != {json.dumps(baseline_value,sort_keys=True)}:
+                require_more_data("model_reasoning baseline does not match the recommended configuration")
+            baseline_configuration, candidate_configuration = baseline_value, candidate_value
+            allowed = {json.dumps(baseline_value,sort_keys=True), json.dumps(candidate_value,sort_keys=True)}
+            for item in valid:
+                if item["configuration_cohort"] is None: continue
+                key = json.dumps(item["configuration_cohort"],sort_keys=True)
+                if key not in allowed: require_more_data("model_reasoning comparison contains an undeclared configuration")
+                experiment_groups.setdefault(key, []).append(item)
+        else:
+            fixed_identity_keys = ("benchmark_id", "snapshot_version", "prompt_version")
+            fixed_identities = {json.dumps({key:item["measurement_identity"][key] for key in fixed_identity_keys},sort_keys=True) for item in valid}
+            configurations = {json.dumps(item["configuration_cohort"],sort_keys=True) for item in valid if item["configuration_cohort"] is not None}
+            if len(fixed_identities) != 1: require_more_data("agents_revision comparison changed a fixed measurement identity")
+            if len(configurations) != 1: require_more_data("agents_revision comparison changed model or reasoning")
+            fixed_conditions = {"measurement_identity":json.loads(next(iter(fixed_identities))) if len(fixed_identities) == 1 else None,
+                                "configuration":json.loads(next(iter(configurations))) if len(configurations) == 1 else None}
+            baseline_configuration = candidate_configuration = fixed_conditions["configuration"]
+            allowed = {baseline_value, candidate_value}
+            for item in valid:
+                key = item["measurement_identity"]["agents_revision"]
+                if key not in allowed: require_more_data("agents_revision comparison contains an undeclared revision")
+                experiment_groups.setdefault(json.dumps(key), []).append(item)
+
+        baseline_key, candidate_key = json.dumps(baseline_value,sort_keys=True), json.dumps(candidate_value,sort_keys=True)
+        if baseline_key not in experiment_groups: require_more_data("baseline cohort is unavailable")
+        if candidate_key not in experiment_groups: require_more_data("candidate cohort is unavailable")
+        extra_keys = set(experiment_groups) - {baseline_key, candidate_key}
+        if extra_keys: require_more_data("comparison contains more than one experiment axis")
+    else:
+        baseline_value = candidate_value = baseline_key = candidate_key = None
+
+    cohort_summaries = []
+    if baseline_key in experiment_groups:
+        cohort_summaries.append(_cohort_summary(experiment_groups[baseline_key], baseline_value, "baseline"))
+    if candidate_key in experiment_groups:
+        cohort_summaries.append(_cohort_summary(experiment_groups[candidate_key], candidate_value, "candidate"))
+    baseline_summary = next((item for item in cohort_summaries if item["role"] == "baseline"), None)
+    candidate_summary = next((item for item in cohort_summaries if item["role"] == "candidate"), None)
     for name, summary in (("baseline",baseline_summary),("candidate",candidate_summary)):
         if summary is None: continue
         if summary["quality_passing_sample_count"] < MIN_COHORT_SAMPLES: require_more_data(name + " cohort has fewer than three quality-passing samples")
-        if summary["metric_sample_count"] != summary["quality_passing_sample_count"]: require_more_data(name + " cohort is missing the comparison metric")
+        for metric in EVIDENCE_METRICS:
+            if summary["metrics"][metric]["sample_count"] != summary["quality_passing_sample_count"]:
+                require_more_data(name + " cohort is missing " + metric)
     baseline_median = baseline_summary["performance_metric"]["median"] if baseline_summary else None
     candidate_median = candidate_summary["performance_metric"]["median"] if candidate_summary else None
     decision = "More Data Required"
@@ -225,11 +311,13 @@ def evaluate(records: list[dict[str, Any]]) -> dict[str, Any]:
         else:
             decision = "Retain"; reason = "candidate cohort does not have a lower observed median wall time"
     quality_records = [item for item in valid if _quality_passes(item["quality"])]
-    recommendation={"decision":decision,"comparison_class":comparison_class,"sample_count":len(quality_records),
+    recommendation={"decision":decision,"experiment_axis":experiment_axis,"fixed_conditions":fixed_conditions,
+                    "comparison_class":comparison_class,"sample_count":len(quality_records),
                     "quality_condition":"acceptance and build/test pass, no regression or governance violation",
-                    "configuration":{"baseline":baseline_configuration,"candidate":candidate_configuration},"configuration_cohorts":cohort_summaries,
+                    "configuration":{"baseline":baseline_configuration,"candidate":candidate_configuration},
+                    "configuration_cohorts":configuration_summaries,"experiment_cohorts":cohort_summaries,
                     "difficulty_range":[min((x["realized"]["total"] for x in quality_records),default=None),max((x["realized"]["total"] for x in quality_records),default=None)],
-                    "metrics":[PRIMARY_METRIC],"metric_evaluation":{"direction":"lower_is_better","baseline_median":baseline_median,
+                    "metrics":list(EVIDENCE_METRICS),"metric_evaluation":{"name":PRIMARY_METRIC,"direction":"lower_is_better","baseline_median":baseline_median,
                     "candidate_median":candidate_median,"observed_delta":candidate_median-baseline_median if candidate_median is not None and baseline_median is not None else None},
                     "reason":reason,"confidence":"medium" if decision != "More Data Required" else "low",
                     "constraints":"observational only; no causal claim, automatic change, or unapproved performance threshold"}

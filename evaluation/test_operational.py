@@ -14,6 +14,13 @@ def comparison_rows(candidate_times=(8,9,10)):
   row["configuration"]["actual"]["model"]="candidate-model"
   rows.append(row)
  return rows
+def agents_rows(candidate_times=(8,9,10)):
+ rows=[]; baseline=sample()["measurement_identity"]["agents_revision"]; candidate="f"*40
+ for wall_time in (10,11,12):
+  row=sample(); row["experiment_axis"]={"name":"agents_revision","baseline":baseline,"candidate":candidate}; row["performance"]["wall_time_seconds"]=wall_time; rows.append(row)
+ for wall_time in candidate_times:
+  row=sample(); row["experiment_axis"]={"name":"agents_revision","baseline":baseline,"candidate":candidate}; row["measurement_identity"]["agents_revision"]=candidate; row["performance"]["wall_time_seconds"]=wall_time; rows.append(row)
+ return rows
 class OperationalTests(unittest.TestCase):
  def test_measurement_identity_contract_and_report(self):
   row=evaluate([sample()])["records"][0]
@@ -80,6 +87,8 @@ class OperationalTests(unittest.TestCase):
   self.assertEqual(recommendation["decision"],"Change Candidate")
   self.assertEqual(len(recommendation["configuration_cohorts"]),2)
   self.assertEqual([item["quality_passing_sample_count"] for item in recommendation["configuration_cohorts"]],[3,3])
+  self.assertEqual([item["role"] for item in recommendation["experiment_cohorts"]],["baseline","candidate"])
+  self.assertEqual(set(recommendation["experiment_cohorts"][0]["metrics"]),{"wall_time_seconds","retries","reverification","post_report_rework","governance_violations"})
   self.assertLess(recommendation["metric_evaluation"]["candidate_median"],recommendation["metric_evaluation"]["baseline_median"])
   self.assertIn("observational only",recommendation["constraints"])
  def test_retain_requires_evaluated_performance_not_sample_count(self):
@@ -87,4 +96,30 @@ class OperationalTests(unittest.TestCase):
   recommendation=evaluate(comparison_rows((12,13,14)))["recommendation"]
   self.assertEqual(recommendation["decision"],"Retain")
   self.assertGreaterEqual(recommendation["metric_evaluation"]["candidate_median"],recommendation["metric_evaluation"]["baseline_median"])
+ def test_agents_revision_axis_keeps_configuration_fixed(self):
+  recommendation=evaluate(agents_rows())["recommendation"]
+  self.assertEqual(recommendation["decision"],"Change Candidate")
+  self.assertEqual(recommendation["experiment_axis"]["name"],"agents_revision")
+  self.assertEqual(recommendation["configuration"]["baseline"],recommendation["configuration"]["candidate"])
+  self.assertEqual([item["quality_passing_sample_count"] for item in recommendation["experiment_cohorts"]],[3,3])
+ def test_axis_fixed_conditions_multiple_change_and_unknown(self):
+  rows=comparison_rows(); rows[-1]["measurement_identity"]["agents_revision"]="f"*40
+  self.assertEqual(evaluate(rows)["recommendation"]["decision"],"More Data Required")
+  rows=comparison_rows(); rows[-1]["measurement_identity"]["snapshot_version"]="v2"
+  self.assertEqual(evaluate(rows)["recommendation"]["decision"],"More Data Required")
+  rows=agents_rows(); rows[-1]["configuration"]["actual"]["model"]="other"
+  self.assertEqual(evaluate(rows)["recommendation"]["decision"],"More Data Required")
+  a=sample(); a["experiment_axis"]["name"]="unknown"; report=evaluate([a])
+  self.assertEqual(report["records"][0]["status"],"unavailable"); self.assertEqual(report["recommendation"]["decision"],"More Data Required")
+ def test_quality_failure_is_retained_as_regression_and_excluded(self):
+  rows=comparison_rows(); rows[-1]["quality"]["passed"]=False; recommendation=evaluate(rows)["recommendation"]
+  self.assertEqual(recommendation["decision"],"More Data Required")
+  candidate=next(item for item in recommendation["experiment_cohorts"] if item["role"]=="candidate")
+  self.assertEqual(candidate["sample_count"],3); self.assertEqual(candidate["quality_passing_sample_count"],2); self.assertEqual(candidate["quality_regression_count"],1)
+  self.assertEqual(candidate["metrics"]["wall_time_seconds"]["sample_count"],2)
+ def test_secondary_metric_unavailable_reason_is_reported(self):
+  rows=comparison_rows(); rows[-1]["execution_friction"]["retries"]=None; rows[-1]["unavailable_reason"]["retries"]="not available from execution record"
+  recommendation=evaluate(rows)["recommendation"]; self.assertEqual(recommendation["decision"],"More Data Required")
+  candidate=next(item for item in recommendation["experiment_cohorts"] if item["role"]=="candidate")
+  retries=candidate["metrics"]["retries"]; self.assertEqual(retries["unavailable_count"],1); self.assertEqual(retries["unavailable_reasons"],["not available from execution record"])
 if __name__=="__main__": unittest.main()
