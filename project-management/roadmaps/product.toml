@@ -46,7 +46,7 @@ horizon="next"
 display_order=10
 name="TCP Scan"
 purpose="env許可Host／Port Range内のTCP Scan"
-task_ids=[]
+task_ids=["T-00038", "T-00039", "T-00040", "T-00041"]
 references=["D-00016"]
 [[workstreams.items]]
 id="challenge-ssh-session"

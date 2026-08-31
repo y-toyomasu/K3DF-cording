@@ -609,3 +609,49 @@ K3DFはReferee Identity、Flag／state mount、Compose、Network公開、起動�
 ### Verification
 
 未実装。K3DFのNamed Volume消費、InfrastructureのFlag Lifecycle操作およびRepository間統合検証を後続Taskで実施し、確認済み構成だけを`ARCHITECTURE.md`へ反映する。
+
+## D-00022: Static bounded TCP Scan
+
+- Status: Accepted
+- Date: 2026-08-31
+- Source: `R-00016`, `R-00020`〜`R-00023`, `R-00025`, `R-00027`〜`R-00029`, `R-00036`〜`R-00040`, `R-00045`〜`R-00047`, `F-00012`, `D-00016`
+
+### Context
+
+K3ATのTool expansion roadmapにはTCP Scanが含まれるが、任意Host、LAN全体またはManagement Endpointを探索可能にするとTarget Boundaryを越える。Kimi K3へHost、Range、Timeout、ConcurrencyまたはBudgetを直接選ばせず、起動時に固定されたTarget Registryと小さなconnect-only契約へ限定する必要がある。
+
+### Decision
+
+- 設定はJSON形式の環境変数`K3AT_AUTHORIZED_TCP_TARGETS`とする。最大16 Targetを許可し、Target IDはASCII小文字、数字、`-`だけの最大32文字とする。
+- 各Targetは一意なTarget ID、ASCII hostnameまたはIPv4、および整数または`start-end`で表す許可Portを持つ。Port設定はTargetごとに最大4096個の一意な許可Portへ展開する。
+- HostはRun開始時にIPv4へ解決して固定する。解決失敗、複数IPv4へ解決される曖昧なTarget、loopback、link-local、multicastおよびunspecified addressは起動時に拒否する。
+- Tool引数は`target_id`と展開済み整数Port配列だけとし、Range、Host、Timeout、ConcurrencyまたはBudgetを含めない。
+- 設定されたTarget IDと許可PortはSystem PolicyとしてTool Catalogへ提示できるが、開放状態または内部Service構成として扱わない。
+- `tcp.scan`はCapabilityやFlag状態にかかわらずRun開始時からCatalogへ掲載する。Target未設定時もTool定義を維持し、Network接続前に「許可TCP Targetなし」として拒否する。
+- `tcp.scan`は1 Invocationあたり1〜128個の一意なPortへ、最大8並列、1接続500ms、再試行なし、全体12秒Hard TimeoutでTCP connectだけを実行する。TCP専用Budgetは既定256 Port／Runとし、Action Budgetとともに接続開始前にInvocation全体分を確保する。
+- 不正入力、重複Port、許可範囲外PortまたはBudget不足では一件も接続しない。connect成功後は直ちにcloseし、Banner取得、Payload送信、TLS Handshakeまたは受信処理を行わない。
+- 結果は`open`、`closed`、`timeout`、`unreachable`へ正規化する。生Socket Error、受信Data、DNS内部情報、秘密情報またはHost固有情報をEvidenceへ保存せず、Capabilityを自動確定しない。
+- Fallback Plannerは根拠なしにTCP Scanを自動選択せず、既存HTTP既定動作を維持する。
+- IPv6、Banner取得、Protocol Probe、UDP、SYN Scan、Service Fingerprint、Credential使用、Proxy、SSH SessionおよびDatabase接続は対象外とする。
+
+### Rationale
+
+静的Registry、事前検証、二重Budgetおよびconnect-only上限により、Kimi K3の動的探索を維持しながらTarget Boundary、Management Network分離、予測可能な実行時間およびEvidence非露出を両立する。
+
+### Alternatives considered
+
+- Kimi K3へ任意HostまたはRangeを渡す案
+- LAN全体を自動探索する案
+- SYN Scan、Banner取得またはProtocol Probeを同時実装する案
+- Capability状態に応じてToolを公開する案
+- Target未設定時にTool定義をCatalogから除外する案
+
+いずれもTarget Boundary、Tool Catalog完全性、最小ScopeまたはEvidence安全性に反するため採用しない。
+
+### Consequences
+
+K3ATに静的TCP Target Registry、`tcp.scan` Tool、TCP専用Budget、connect-only Executor、正規化EvidenceおよびPlanner／Catalog統合を追加する。実装は`T-00038`〜`T-00040`、確認済みArchitectureとDecision Verificationの反映は`T-00041`で行う。
+
+### Verification
+
+未実装。確認済み構成を事前に`ARCHITECTURE.md`へ追加せず、`T-00038`〜`T-00041`で実装、検証および記録を行う。

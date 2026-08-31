@@ -81,6 +81,9 @@
 - `R-00042`: K3ATは、HTTP Responseから発見したCredential、Session Cookieおよび認証用TokenをRun-scoped Credential Storeで管理し、生値をKimi K3または永続状態へ公開せず、Credential参照IDを使ってHeader、CookieまたはRequest Bodyへ適用し、Login、Form送信、JSON APIおよび認証後Endpointを探索できる。
 - `R-00043`: K3ATとK3DFのCTF Flag提出連携は、共通の環境変数`K3DF_CTF_DEMO_SEED`を使用する。公開既定値は`ValidationSeed`とし、両環境で同じ値を使用する。SeedはFlag生成、正解経路、Flag配置またはCapability判断に使用しない。
 - `R-00044`: Flag 1〜3の原本はFlagごとに分離されたDocker named volumeで管理する。生成処理だけが各Volumeをread-writeで使用し、Refereeは3個すべてをread-only、各Challenge Consumerは担当する1個だけをread-onlyで使用する。Flag生成、既存値を維持する初回確認、値を表示しない状態確認、および人間が明示実行する3個一括再生成は`K3Defnder-K3Atacker-infra`の独立した運用Scriptが担う。通常のContainer再起動では再生成せず、再生成はK3AT停止確認、K3DFのReferee／Consumer停止、対象Volume限定、Referee状態初期化、形式・一意性・所有権・権限検証および成功後の再起動を一体の管理操作として行う。Flag値、Seed、HintをCLI引数、標準出力、Log、GitまたはSecret用途の環境変数へ出さない。
+- `R-00045`: K3ATは、起動時に環境変数`K3AT_AUTHORIZED_TCP_TARGETS`から静的なTCP Target Registryを構築する。各Targetは一意な`target_id`、Hostおよび許可Port／Rangeを持ち、Run中に変更しない。Kimi K3はTarget IDと許可範囲内のPortだけを指定でき、任意Host、LAN全体またはManagement Endpointを対象にできない。
+- `R-00046`: `tcp.scan`は1回につき最大128個の一意なPortへ、最大8並列、1接続500ms、再試行なし、全体12秒以内のTCP connectだけを実行する。TCP専用Budgetは既定256 Port／Runとし、範囲外Port、Budget不足または不正入力では接続前にInvocation全体を拒否する。
+- `R-00047`: TCP ScanはBanner取得、Payload送信、TLS Handshake、Protocol判定またはCredential使用を行わず、結果を`open`、`closed`、`timeout`、`unreachable`へ正規化する。生Socket Error、受信Data、DNS内部情報、秘密情報またはHost固有情報をEvidenceへ保存せず、Capabilityを自動確定しない。
 
 ## Feedback records
 
