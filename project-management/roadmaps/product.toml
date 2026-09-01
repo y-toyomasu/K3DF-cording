@@ -110,5 +110,5 @@ horizon="next"
 display_order=10
 name="Kimi K3 Japanese Operator Output"
 purpose="機械処理契約と原文Evidenceを維持し、人間向けの探索・判断説明を日本語で提供する"
-task_ids=[]
+task_ids=["T-00051"]
 references=["F-00033"]
