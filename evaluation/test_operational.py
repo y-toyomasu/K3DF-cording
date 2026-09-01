@@ -20,6 +20,7 @@ def agents_rows(candidate_times=(8,9,10)):
   row=sample(); row["experiment_axis"]={"name":"agents_revision","baseline":baseline,"candidate":candidate}; row["performance"]["wall_time_seconds"]=wall_time; rows.append(row)
  for wall_time in candidate_times:
   row=sample(); row["experiment_axis"]={"name":"agents_revision","baseline":baseline,"candidate":candidate}; row["measurement_identity"]["agents_revision"]=candidate; row["performance"]["wall_time_seconds"]=wall_time; rows.append(row)
+  row["metadata"]["agents_version"]="v2"
  return rows
 class OperationalTests(unittest.TestCase):
  def test_measurement_identity_contract_and_report(self):
@@ -102,6 +103,11 @@ class OperationalTests(unittest.TestCase):
   self.assertEqual(recommendation["experiment_axis"]["name"],"agents_revision")
   self.assertEqual(recommendation["configuration"]["baseline"],recommendation["configuration"]["candidate"])
   self.assertEqual([item["quality_passing_sample_count"] for item in recommendation["experiment_cohorts"]],[3,3])
+  self.assertEqual(evaluate(agents_rows())["records"][0]["metadata"]["agents_version"],"v1")
+  self.assertEqual(evaluate(agents_rows())["records"][-1]["metadata"]["agents_version"],"v2")
+ def test_agents_version_is_not_comparison_class(self):
+  a=sample(); a["comparison_class"]["agents_version"]="v1"
+  report=evaluate([a]); self.assertEqual(report["records"][0]["status"],"unavailable")
  def test_axis_fixed_conditions_multiple_change_and_unknown(self):
   rows=comparison_rows(); rows[-1]["measurement_identity"]["agents_revision"]="f"*40
   self.assertEqual(evaluate(rows)["recommendation"]["decision"],"More Data Required")

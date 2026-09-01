@@ -15,6 +15,7 @@ CONFIDENCE = {"low", "medium", "high"}
 DECISIONS = {"Retain", "Change Candidate", "More Data Required"}
 PROHIBITED_FIELDS = {"task_body", "prompt", "command", "error", "host_path", "secret", "credential", "token", "flag", "authentication", "execution_secret", "private_reasoning"}
 REQUIRED_SECTIONS = {"measurement_identity", "experiment_axis", "comparison_class", "configuration", "predicted_difficulty", "realized_difficulty", "quality", "performance", "process_waiting", "execution_friction", "unavailable_reason"}
+OPTIONAL_SECTIONS = {"metadata"}
 IDENTITY_FIELDS = {"benchmark_id", "snapshot_version", "prompt_version", "agents_revision"}
 EXPERIMENT_FIELDS = {"name", "baseline", "candidate"}
 EXPERIMENT_AXES = {"model_reasoning", "agents_revision"}
@@ -24,7 +25,8 @@ QUALITY_FIELDS = {"passed", "acceptance_criteria", "build_test", "rework", "gove
 PERFORMANCE_FIELDS = {"wall_time_seconds", "time_to_first_tool_seconds", "tool_calls", "input_tokens", "output_tokens", "cost"}
 WAITING_FIELDS = {"active_seconds", "human_wait_seconds", "dependency_wait_seconds", "review_wait_seconds"}
 FRICTION_FIELDS = {"tool_errors", "retries", "reverification", "post_report_rework"}
-COMPARISON_FIELDS = {"role", "task_type", "difficulty_band", "risk", "agents_version"}
+COMPARISON_FIELDS = {"role", "task_type", "difficulty_band", "risk"}
+METADATA_FIELDS = {"agents_version"}
 UNAVAILABLE_FIELDS = PERFORMANCE_FIELDS | WAITING_FIELDS | FRICTION_FIELDS | {"tokens", "waiting_seconds", "actual_model", "actual_reasoning"}
 PRIMARY_METRIC = "wall_time_seconds"
 EVIDENCE_METRICS = (PRIMARY_METRIC, "retries", "reverification", "post_report_rework", "governance_violations")
@@ -168,7 +170,7 @@ def _experiment_axis(value: Any) -> dict[str, Any]:
 
 def _validate(record: dict[str, Any]) -> dict[str, Any]:
     _reject_prohibited(record)
-    if not isinstance(record, dict) or set(record) != REQUIRED_SECTIONS: raise ValidationError("record sections are invalid")
+    if not isinstance(record, dict) or not REQUIRED_SECTIONS <= set(record) or set(record) - REQUIRED_SECTIONS - OPTIONAL_SECTIONS: raise ValidationError("record sections are invalid")
     measurement_identity = _measurement_identity(record["measurement_identity"])
     experiment_axis = _experiment_axis(record["experiment_axis"])
     config, config_complete = _configuration(record["configuration"])
@@ -187,10 +189,12 @@ def _validate(record: dict[str, Any]) -> dict[str, Any]:
     comparison_input = _allowlist("comparison class", record["comparison_class"], COMPARISON_FIELDS)
     if set(comparison_input) != COMPARISON_FIELDS: raise ValidationError("comparison class is incomplete")
     comparison = {key:_text(comparison_input[key], key, 80) for key in COMPARISON_FIELDS}
+    metadata_input = _allowlist("metadata", record.get("metadata", {}), METADATA_FIELDS)
+    metadata = {key:_text(value, "metadata", 80) for key,value in metadata_input.items()}
     recommended_cohort = _configuration_identity(config, "recommended")
     configuration_cohort = _configuration_identity(config, "actual")
     metrics_complete = performance[PRIMARY_METRIC] is not None
-    return {"measurement_identity":measurement_identity, "experiment_axis":experiment_axis, "comparison_class":comparison, "configuration":config, "configuration_complete":config_complete, "predicted":predicted, "realized":realized,
+    return {"measurement_identity":measurement_identity, "experiment_axis":experiment_axis, "comparison_class":comparison, "metadata":metadata, "configuration":config, "configuration_complete":config_complete, "predicted":predicted, "realized":realized,
             "prediction_error":realized["total"]-predicted["total"], "quality":quality, "performance":performance,
             "process_waiting":waiting, "execution_friction":friction, "unavailable_reason":unavailable, "realized_evidence":evidence,
             "recommended_cohort":recommended_cohort, "configuration_cohort":configuration_cohort, "metrics_complete":metrics_complete}
