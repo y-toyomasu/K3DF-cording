@@ -108,6 +108,12 @@ class OperationalTests(unittest.TestCase):
  def test_agents_version_is_not_comparison_class(self):
   a=sample(); a["comparison_class"]["agents_version"]="v1"
   report=evaluate([a]); self.assertEqual(report["records"][0]["status"],"unavailable")
+ def test_agents_version_metadata_is_a_sanitized_identifier(self):
+  self.assertEqual(evaluate([sample()])["records"][0]["metadata"]["agents_version"],"v1")
+  a=sample(); a["metadata"]["agents_version"]="v2"; self.assertEqual(evaluate([a])["records"][0]["metadata"]["agents_version"],"v2")
+  a=sample(); a["metadata"]["agents_version"]=""; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
+  for value in ("v 1", "an arbitrary sentence", "C:"+chr(92)+"Users"+chr(92)+"private"):
+   a=sample(); a["metadata"]["agents_version"]=value; report=evaluate([a]); self.assertEqual(report["records"][0]["status"],"unavailable"); self.assertNotIn(value,str(report))
  def test_axis_fixed_conditions_multiple_change_and_unknown(self):
   rows=comparison_rows(); rows[-1]["measurement_identity"]["agents_revision"]="f"*40
   self.assertEqual(evaluate(rows)["recommendation"]["decision"],"More Data Required")

@@ -21,7 +21,7 @@ Measurement Identityは`benchmark_id`、`snapshot_version`、`prompt_version`お
 
 Experiment Axisは`model_reasoning`または`agents_revision`のどちらか1種類を、異なるBaseline／Candidate値とともに明示します。`model_reasoning`ではMeasurement Identityの4 Fieldを固定し、実Model／Reasoningだけを比較します。`agents_revision`ではBenchmark、Snapshot、Promptおよび実Model／Reasoningを固定し、`agents_revision`だけを比較します。未知Axis、未宣言cohort、固定条件不一致または複数要因変更は性能結論に使わず、`More Data Required`として報告します。
 
-`measurement_identity.agents_revision`がAGENTS.mdの正式な比較識別子です。旧来の`agents_version`は任意の`metadata`内に表示専用で記録できますが、`comparison_class`には含めず、固定条件・Comparison Class一致判定・cohortキーには使用しません。そのため、AGENTS.md変更時に表示Version（例：`v1`から`v2`）とblob IDの両方が変わっても、他の固定条件が一致すれば`agents_revision` Axisの比較を継続できます。
+`measurement_identity.agents_revision`がAGENTS.mdの正式な比較識別子です。旧来の`agents_version`は任意の`metadata`内に表示専用で記録できますが、非空・80文字以下で先頭を英数字、以後を英数字、`.`、`_`、`-`だけで構成するIdentifierに限ります。`comparison_class`には含めず、固定条件・Comparison Class一致判定・cohortキーには使用しません。そのため、AGENTS.md変更時に表示Version（例：`v1`から`v2`）とblob IDの両方が変わっても、他の固定条件が一致すれば`agents_revision` Axisの比較を継続できます。
 
 ConfigurationはTask推奨、Product Owner選択、環境確認済み実値をModel／Reasoning／Source付きで別々に記録します。取得不能値は推測せず、Fieldの`unavailable_reason`へ理由を記録します。Performance、WaitingまたはExecution Frictionの全Fieldは必須で、値は非負数または`null`です。`null`では`unavailable_reason`へ同名Fieldの理由を必ず記録し、実測値と理由の併存は拒否します。実測`0`は取得済みの0だけを表し、未取得値の代用には使用しません。Active作業時間とHuman、Dependency、Reviewの各待ち時間を分離し、Tool Error、Retry、再検証、REPORT後手戻りはExecution Frictionへ記録します。
 

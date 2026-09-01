@@ -190,7 +190,12 @@ def _validate(record: dict[str, Any]) -> dict[str, Any]:
     if set(comparison_input) != COMPARISON_FIELDS: raise ValidationError("comparison class is incomplete")
     comparison = {key:_text(comparison_input[key], key, 80) for key in COMPARISON_FIELDS}
     metadata_input = _allowlist("metadata", record.get("metadata", {}), METADATA_FIELDS)
-    metadata = {key:_text(value, "metadata", 80) for key,value in metadata_input.items()}
+    metadata = {}
+    for key, value in metadata_input.items():
+        identifier = _text(value, "metadata", 80)
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}", identifier):
+            raise ValidationError("metadata identifier is invalid")
+        metadata[key] = identifier
     recommended_cohort = _configuration_identity(config, "recommended")
     configuration_cohort = _configuration_identity(config, "actual")
     metrics_complete = performance[PRIMARY_METRIC] is not None
