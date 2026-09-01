@@ -56,7 +56,11 @@ Experiment Axisは`model_reasoning`または`agents_revision`とし、一度の�
 
 RecommendationはRetain、Change Candidate、More Data Requiredだけとし、比較Class、Sample数、Quality条件、Configuration、Difficulty Range、指標、根拠、Confidence、制約を示す。同一ClassのQuality合格Sampleが3未満、比較不能、品質Regression、設定不明またはRubric Version不一致ならMore Data Requiredとする。自動的にTask推奨、Agent設定、AGENTS.mdまたはModelを変更しない。
 
-最初のOperational Measurement PilotはBaseline策定ではなく測定経路の受入れとする。同一のread-only固定Benchmark、Snapshot、Promptおよび`agents_revision`で、Baseline `gpt-5.6-terra / medium` 1 RunとCandidate `gpt-5.6-luna / low` 1 RunをProduct Ownerが起動する。記録、Sanitize、Configuration cohort、Quality、MetricおよびReport生成をEnd-to-End確認し、各cohort 1件のためRecommendationは`More Data Required`とする。この2 Runから性能優劣、Model推奨または現行Baselineを確定しない。実Baseline策定は別Taskで各cohort 3件以上を用いる。
+最初のOperational Measurement PilotはBaseline策定ではなく、実開発Taskの実行単位をread-onlyに観測する経路の受入れとする。Product Ownerは固定Benchmark `progress-review`のDry Runを起動しない。Sanitized Observation Recordから記録、Sanitize、観測cohort、Quality、取得可能MetricおよびReport生成をEnd-to-End確認する。異なる実開発Taskを直接A/B比較せず、Role、Task Type、Difficulty、Risk、実Model／Reasoningおよび`agents_revision`ごとに比較可能性を限定した記述的集計だけを行う。観測結果は実開発の傾向把握、将来の比較対象選定、`AGENTS.md`変更の追跡候補およびModel選定仮説に用いるが、因果関係、性能優劣、Baseline、Model推奨または`AGENTS.md`変更を確定しない。厳密な比較・Recommendationは、将来、同条件の比較可能なcohortを別Taskで設計・収集した場合だけ行う。
+
+### Operational Observation Mode
+
+固定比較用の`controlled_experiment`と、実開発Taskの実行単位を記録する`operational_observation`を分離する。Observation RecordはTask ID、実行単位の非秘密識別子、Role、Task Type、Risk、Predicted／Realized Difficulty、実Model／Reasoning、`agents_revision`、Quality、取得可能Metricおよび各Metricの`unavailable_reason`だけを許可する。固定Benchmark用のBenchmark ID、Snapshot Version、Prompt Version、Baseline／CandidateおよびExperiment AxisはObservation Modeで要求しない。中断・再開は再開ごとの実行単位として別Recordにできる。Observation ModeのRecommendationはSample数にかかわらず常に`More Data Required`とし、比較、自動最適化または自動設定変更を行わない。
 
 ## Roadmap
 
