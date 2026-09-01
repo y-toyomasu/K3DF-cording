@@ -35,7 +35,7 @@ Taskは`tasks/TEMPLATE.md`を基に作成し、次の8 Statusのいずれかを�
 | Status | Meaning |
 | --- | --- |
 | `DESIGN` | Task LeadがTask内容、SYNC、依存関係または公開条件を整理中。 |
-| `READY` | Task Leadが公開条件を確認して公開済み。Dependencies解消後にEngineering Agentが取得できる。 |
+| `READY` | Task Leadが公開条件を確認して公開済み。Dependencies解消されていないことは、TaskがこのStatusに遷移することを妨げない。Dependencies が解消していれば Engineering Agentが取得できる。 |
 | `CLAIMED` | Engineering Agentが初回取得または`BLOCKED`から再開し、実装前確認中。コード実装は未開始。 |
 | `IMPLEMENTING` | 実装前確認に合格したEngineering Agentが実装または再検証中。 |
 | `GUI_REVIEW` | GUIを含む変更の視覚・操作確認待ちまたは確認中。 |
@@ -53,7 +53,7 @@ Taskは`tasks/TEMPLATE.md`を基に作成し、次の8 Statusのいずれかを�
 
 ### New Task Active-work Planning
 
-- Task Leadは、この規約の施行後に作成する新規Taskを、Engineering Agentの`CLAIM → PREPARE → IMPLEMENT → VERIFY → REPORT`が概ね15分以内のActive作業で完了する粒度として計画する。既存の公開済み、取得済みまたは`DESIGN` Taskには遡及適用しない。
+- Task Leadは、この規約の施行後に作成する新規Taskを、Engineering Agentの`CLAIM → PREPARE → IMPLEMENT → VERIFY → REPORT`が概ね20分以内のActive作業で完了する粒度として計画する。既存の公開済み、取得済みまたは`DESIGN` Taskには遡及適用しない。
 - Active作業にはTask確認、worktree準備、実装、Build、Test、GUI自動検証、Commit、REPORTおよびTool／Command実行待ちを含める。Dependency待ち、`BLOCKED`中の判断待ち、Product OwnerのGUI Review／Acceptance待ちおよび取得前待ちは含めない。
 - 15分を超える可能性が高いTaskは、Repository、責務、実装段階または検証段階の境界で、独立して検証・受入れ可能なTaskへ分割する。安全性、原子性、Rollback可能性または有効な検証を損なう分割は行わない。
 - 分割不能な場合だけ、Taskの`Planned Active Time`へ`>15 minutes — exception approved`、`Time Box Exception`へ必要性とProduct Ownerの明示承認を記録する。通常は`Planned Active Time: ≤15 minutes`および`Time Box Exception: none`とする。
@@ -67,7 +67,7 @@ Taskは`tasks/TEMPLATE.md`を基に作成し、次の8 Statusのいずれかを�
 
 ### Engineering Agent: `CLAIM → PREPARE → IMPLEMENT → VERIFY → REPORT`
 
-1. **CLAIM**: Product Ownerの明示指定を最優先し、指定がなければDependencies解消済み`READY` TaskをPriority順、同順位ではTask ID順に選ぶ。明示指定も`READY`、Dependencies解消およびCLAIM可能条件を上書きしない。Taskを直ちに`CLAIMED`へ変更し、`Claimed By`とISO 8601の`Claimed At`を記録して、担当、Task、Status、Priority、Dependencies、主な変更対象および競合注意点を報告する。実行可能Taskがなければ報告して終了する。
+1. **CLAIM**: Product Ownerの明示指定を最優先し、指定がなければDependencies解消済みの`READY` TaskをPriority順、同順位ではTask ID順に選ぶ。明示指定も`READY`、Dependencies解消およびCLAIM可能条件を上書きしない。Taskを直ちに`CLAIMED`へ変更し、`Claimed By`とISO 8601の`Claimed At`を記録して、担当、Task、Status、Priority、Dependencies、主な変更対象および競合注意点を報告する。実行可能Taskがなければ報告して終了する。
 2. **PREPARE**: Taskが変更するRepository、Source、Dependencies、変更範囲および既存差分を確認する。Git変更Taskは対象RepositoryごとにTask Branchと専用worktreeを作成または再利用し、Base main Commit、Branch、Pathおよび分離結果をTaskへ記録する。不合格なら`BLOCKED`とし、実装へ進まない。
 3. **IMPLEMENT**: PREPARE合格後だけ`IMPLEMENTING`へ変更し、検証済みTaskの範囲内で実装する。
 4. **VERIFY**: Taskに該当するBuild、Test、静的検証およびGUI確認を行い、失敗時はDiagnose、Fix、Re-testする。対象外項目は「対象外」と簡潔な理由をTaskへ記録する。未達または判断待ちならレビュー状態へ進まず`BLOCKED`とする。
