@@ -115,3 +115,6 @@ Taskは`tasks/TEMPLATE.md`を基に作成し、次の8 Statusのいずれかを�
 
 # Testing
 - 各タスク内で実行されるテスト工程における python の実行においては、この Codex 実行環境に同梱された Python を優先して使用すること。
+- Windows HostでPowerShell経由のPython実行が応答待ちとなる場合は、同じPython、作業Directory、引数およびTest条件を維持したまま、CMD経由で再実行する。Shell変更を理由にTest内容、Acceptance Criteria、Timeoutまたは合否条件を変更しない。
+- 応答待ちとなった実行を成功または失敗と推測せず、結果を取得できた実行だけを検証結果として扱う。実行経路を変更した場合は、使用した経路と確定結果をTaskへ簡潔に記録し、Host固有絶対Pathを記録しない。
+- Dockerは、TaskがContainerまたはLinux環境を要求する場合、Codex同梱Pythonで必要な依存関係を利用できない場合、またはHost実行では有効な検証ができない場合だけ代替実行環境として使用する。PowerShell実行が不安定なだけの場合は、Dockerより先にCMD経由のCodex同梱Pythonを試す。
