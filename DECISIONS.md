@@ -655,3 +655,48 @@ K3ATに静的TCP Target Registry、`tcp.scan` Tool、TCP専用Budget、connect-o
 ### Verification
 
 未実装。確認済み構成を事前に`ARCHITECTURE.md`へ追加せず、`T-00038`〜`T-00041`で実装、検証および記録を行う。
+
+## D-00023: Pinned-host-key Challenge SSH sessions
+
+- Status: Accepted
+- Date: 2026-09-01
+- Source: `R-00016`, `R-00020`〜`R-00023`, `R-00026`〜`R-00029`, `R-00036`〜`R-00040`, `R-00042`, `R-00048`〜`R-00051`, `F-00012`, `D-00016`, `D-00019`, `D-00022`
+
+### Context
+
+Challenge SSHを動的探索へ追加するには、任意Host、Management SSH、TOFU、Private KeyまたはShell実行を許可せず、既存TCP／HTTP／Credential境界に結び付ける必要がある。生Password、Host Key、Banner、暗号交渉情報および生ErrorをKimi K3や永続状態へ渡さず、安全なSession Metadataだけを保持する。
+
+### Decision
+
+- `K3AT_AUTHORIZED_SSH_TARGETS`はJSON配列とし、最大16 SSH Targetを許可する。各Targetは`target_id`、`tcp_target_id`、`port`、`host_key_sha256`、`credential_source_origins`を持つ。
+- `tcp_target_id`は既存TCP Target Registryに存在し、SSH Portは同Targetの許可Portに含まれなければならない。Credential取得元Originは既存HTTP Target Policyに含まれるExact Originだけを許可する。
+- Host KeyはSHA-256 fingerprintで固定する。未指定、形式不正、不一致、TOFUまたは自動登録を拒否する。
+- Usernameは`[A-Za-z0-9._-]`による1〜64文字のTool literalとする。初期対応の認証は`password` Credential参照だけとし、Private Key、SSH Agent、Keyboard InteractiveおよびGSSAPIは対象外とする。
+- Host Key確認後にPassword認証を行う。`ssh.session.open`は最大4 Session、8接続試行／Run、接続3秒、認証5秒、Invocation全体8秒とし、Action BudgetとSSH試行BudgetをNetwork接続前に確保する。
+- SSH Sessionは`SESSION-<UUID>`で識別し、live SSH HandleとPasswordをProcess Memory外へ保存しない。Idle Timeoutは5分、自動再接続なし、Process終了時に全Sessionをcloseする。
+- 接続失敗は`authentication_failed`、`host_key_mismatch`、`timeout`、`unreachable`、`policy_blocked`へ正規化する。`ssh.session.close`はSession IDだけを受け取り、Credentialや接続先を再指定しない。
+- Shell、PTY、SFTP、SCP、Port Forwarding、Agent Forwarding、X11、環境変数送信、SSH CommandまたはLocal Key探索を許可しない。Session確立はCapabilityを自動確定せず、Shell／Filesystem権限も付与しない。
+- 全ToolはCapabilityまたはFlag状態に依存せずRun開始時からCatalogへ掲載する。
+- Password、Host Key内容、SSH Banner、暗号交渉情報、生Error、解決IPまたは受信DataをKimi K3、Evidence、State、Event、Dashboard、Logまたは永続状態へ公開しない。
+
+### Rationale
+
+既存TCP Target Registry、HTTP Exact Origin PolicyおよびRun-scoped Credential StoreへSSH接続を拘束し、Pinned Host Keyと最小のSession管理を組み合わせることで、Challengeだけに限定した認証済み接続を安全に提供する。
+
+### Alternatives considered
+
+- 任意HostまたはManagement SSHへの接続
+- TOFUまたはHost Key自動登録
+- Private Key、SSH Agent、Keyboard InteractiveまたはGSSAPI
+- Shell、PTY、SFTP、SCP、Forwardingまたは環境変数送信
+- SSH接続成功時にCapabilityやFilesystem権限を自動付与する案
+
+いずれもTarget Boundary、Credential非露出または最小権限の要件に反するため採用しない。
+
+### Consequences
+
+K3ATに静的SSH Target Registry、Host Key Policy、Credential Scope、Memory限定Session Store、`ssh.session.open`／`close` ToolおよびSynthetic SSH統合検証を追加する。実装は`T-00042`〜`T-00045`、確認済みArchitectureとDecision Verificationの反映は`T-00046`で行う。
+
+### Verification
+
+未実装。確認済み構成を事前に`ARCHITECTURE.md`へ追加せず、`T-00042`〜`T-00046`で実装、検証および記録を行う。

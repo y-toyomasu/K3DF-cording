@@ -84,6 +84,10 @@
 - `R-00045`: K3ATは、起動時に環境変数`K3AT_AUTHORIZED_TCP_TARGETS`から静的なTCP Target Registryを構築する。各Targetは一意な`target_id`、Hostおよび許可Port／Rangeを持ち、Run中に変更しない。Kimi K3はTarget IDと許可範囲内のPortだけを指定でき、任意Host、LAN全体またはManagement Endpointを対象にできない。
 - `R-00046`: `tcp.scan`は1回につき最大128個の一意なPortへ、最大8並列、1接続500ms、再試行なし、全体12秒以内のTCP connectだけを実行する。TCP専用Budgetは既定256 Port／Runとし、範囲外Port、Budget不足または不正入力では接続前にInvocation全体を拒否する。
 - `R-00047`: TCP ScanはBanner取得、Payload送信、TLS Handshake、Protocol判定またはCredential使用を行わず、結果を`open`、`closed`、`timeout`、`unreachable`へ正規化する。生Socket Error、受信Data、DNS内部情報、秘密情報またはHost固有情報をEvidenceへ保存せず、Capabilityを自動確定しない。
+- `R-00048`: K3ATは、`K3AT_AUTHORIZED_SSH_TARGETS`から静的なChallenge SSH Target Registryを起動時に構築する。SSH Targetは既存TCP Target、許可Port、固定Host Key fingerprintおよびCredential取得元Originへ拘束し、任意Host、Management SSH、TOFUまたはHost Key検証省略を許可しない。
+- `R-00049`: K3ATは、bounded UsernameとRun-scoped Credential Storeの`password`参照を使う`ssh.session.open`を提供する。最大4 Session、8接続試行／Run、接続3秒、認証5秒、Invocation全体8秒とし、Credential取得元OriginとSSH Target Policyが一致する場合だけ認証する。
+- `R-00050`: SSH Sessionは`SESSION-<UUID>`で識別し、Process Memory内だけに保持する。Idle Timeoutは5分、自動再接続なし、Process終了時に全Sessionをcloseする。初期範囲ではShell、PTY、SFTP、SCP、Port Forwarding、Agent Forwarding、X11および環境変数送信を許可しない。
+- `R-00051`: SSH結果は安全なOutcomeとSession Metadataだけへ正規化する。Password、Host Key内容、SSH Banner、暗号交渉情報、生Error、解決IPまたは受信DataをKimi K3、Evidence、State、Event、Dashboard、Logまたは永続状態へ公開しない。
 
 ## Feedback records
 

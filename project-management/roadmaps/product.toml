@@ -54,7 +54,7 @@ horizon="next"
 display_order=20
 name="Challenge SSH Session"
 purpose="Management SSHと分離されたChallenge SSH Session"
-task_ids=[]
+task_ids=["T-00042", "T-00043", "T-00044", "T-00045", "T-00046"]
 references=["D-00016"]
 [[workstreams.items]]
 id="session-shell-filesystem"
