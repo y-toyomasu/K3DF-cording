@@ -1,0 +1,39 @@
+[
+  {
+    "measurement_mode": "operational_observation",
+    "observation_identity": {
+      "task_id": "T-00050",
+      "execution_id": "t00050-run-001",
+      "agents_revision": "e63d0b356541ac7cd6f9e014746e0e6d5f43f212"
+    },
+    "comparison_class": {"role": "engineering", "task_type": "evaluation", "risk": "medium"},
+    "actual_configuration": {"model": "gpt-5.6-terra", "reasoning": "medium"},
+    "predicted_difficulty": {
+      "rubric_version": "1.0",
+      "axes": {"change_surface": 1, "uncertainty": 1, "integration": 1, "verification": 1, "safety_risk": 1, "coordination": 1},
+      "total": 6,
+      "band": "Low",
+      "confidence": "medium"
+    },
+    "realized_difficulty": {
+      "rubric_version": "1.0",
+      "axes": {"change_surface": 1, "uncertainty": 1, "integration": 2, "verification": 1, "safety_risk": 1, "coordination": 1},
+      "total": 7,
+      "band": "Low",
+      "confidence": "medium"
+    },
+    "quality": {"passed": true, "acceptance_criteria": "pass", "build_test": "pass", "rework": 0, "governance_violations": 0, "regression": false},
+    "performance": {"wall_time_seconds": 12, "time_to_first_tool_seconds": null, "tool_calls": null, "input_tokens": null, "output_tokens": null, "cost": null},
+    "process_waiting": {"active_seconds": 12, "human_wait_seconds": 0, "dependency_wait_seconds": 0, "review_wait_seconds": null},
+    "execution_friction": {"tool_errors": 0, "retries": 0, "reverification": 0, "post_report_rework": null},
+    "unavailable_reason": {
+      "time_to_first_tool_seconds": "not available from execution record",
+      "tool_calls": "not available from execution record",
+      "input_tokens": "not available from execution record",
+      "output_tokens": "not available from execution record",
+      "cost": "not available from execution record",
+      "review_wait_seconds": "review has not occurred",
+      "post_report_rework": "report has not occurred"
+    }
+  }
+]

@@ -1,6 +1,16 @@
 {
   "version": "1.0",
   "unknown_fields": "reject",
+  "measurement_mode": {"controlled_experiment": "existing fixed benchmark comparison contract; omitted mode remains backward-compatible as controlled_experiment", "operational_observation": "independent real-development observation contract; never compare, optimize, or recommend a model or configuration"},
+  "operational_observation": {
+    "fields_required": ["measurement_mode", "observation_identity", "comparison_class", "actual_configuration", "predicted_difficulty", "realized_difficulty", "quality", "performance", "process_waiting", "execution_friction", "unavailable_reason"],
+    "observation_identity_fields": ["task_id", "execution_id", "agents_revision"],
+    "task_id": "T-xxxxx", "execution_id": "non-secret ASCII identifier; each resume may have a distinct record", "agents_revision": "40 or 64 lowercase hexadecimal Git object ID",
+    "comparison_class_fields": ["role", "task_type", "risk"],
+    "actual_configuration_fields": ["model", "reasoning"],
+    "forbidden": ["benchmark_id", "snapshot_version", "prompt_version", "experiment_axis", "baseline", "candidate", "recommended", "po_selected"],
+    "recommendation": "always More Data Required; no comparison, model recommendation, automatic optimization, or automatic configuration change"
+  },
   "text": {"minimum_length": 1, "maximum_length": 160},
   "measurement_identity": {"required": true, "fields_required": ["benchmark_id", "snapshot_version", "prompt_version", "agents_revision"], "identifier_pattern": "ASCII alphanumeric followed by ASCII alphanumeric, dot, underscore, or hyphen", "identifier_maximum_length": 80, "agents_revision": "40 or 64 lowercase hexadecimal Git object ID; never AGENTS.md content or a host path"},
   "experiment_axis": {"required": true, "fields_required": ["name", "baseline", "candidate"], "names": ["model_reasoning", "agents_revision"], "model_reasoning_values": {"fields_required": ["model", "reasoning"], "maximum_length": 80}, "agents_revision_values": "40 or 64 lowercase hexadecimal Git object ID", "baseline_candidate_must_differ": true, "single_axis_only": true, "fixed_conditions": {"model_reasoning": ["benchmark_id", "snapshot_version", "prompt_version", "agents_revision"], "agents_revision": ["benchmark_id", "snapshot_version", "prompt_version", "actual model", "actual reasoning"]}},

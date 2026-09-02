@@ -4,6 +4,10 @@ def sample():
  import json
  from pathlib import Path
  return json.loads(Path("evaluation/fixtures/operational-sample.json").read_text(encoding="utf-8"))[0]
+def observation_sample():
+ import json
+ from pathlib import Path
+ return json.loads(Path("evaluation/fixtures/observation-sample.json").read_text(encoding="utf-8"))[0]
 def comparison_rows(candidate_times=(8,9,10)):
  rows=[]
  for wall_time in (10,11,12):
@@ -23,9 +27,37 @@ def agents_rows(candidate_times=(8,9,10)):
   row["metadata"]["agents_version"]="v2"
  return rows
 class OperationalTests(unittest.TestCase):
+ def test_operational_observation_is_separate_and_never_recommends(self):
+  rows=[]
+  for wall_time in (12,8,6,4):
+   row=observation_sample(); row["performance"]["wall_time_seconds"]=wall_time; row["actual_configuration"]["model"]="other-model"; rows.append(row)
+  report=evaluate(rows)
+  self.assertEqual(report["measurement_mode"],"operational_observation")
+  self.assertEqual(report["recommendation"]["decision"],"More Data Required")
+  self.assertFalse(report["recommendation"]["comparison_performed"])
+  self.assertNotIn("baseline",report["recommendation"])
+  self.assertNotIn("candidate",report["recommendation"])
+  self.assertEqual(report["observation_summary"]["record_count"],4)
+ def test_observation_preserves_null_metric_reason_and_resume_identity(self):
+  first=observation_sample(); resumed=copy.deepcopy(first); resumed["observation_identity"]["execution_id"]="t00050-run-002"
+  report=evaluate([first,resumed]); row=report["records"][0]
+  self.assertIsNone(row["performance"]["cost"])
+  self.assertEqual(row["unavailable_reason"]["cost"],"not available from execution record")
+  self.assertEqual(report["observation_summary"]["metrics"]["cost"]["unavailable_count"],2)
+ def test_observation_rejects_unknown_or_prohibited_data_without_echoing_it(self):
+  a=observation_sample(); a["benchmark_id"]="progress-review"; report=evaluate([a]); self.assertEqual(report["records"][0]["status"],"unavailable")
+  a=observation_sample(); a["unavailable_reason"]["tokens"]="not collected"; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
+  a=observation_sample(); a["observation_identity"]["host_path"]="C:"+chr(92)+"private"; report=evaluate([a]); self.assertEqual(report["records"][0]["status"],"unavailable"); self.assertNotIn("private",str(report))
+  a=observation_sample(); a["realized_difficulty"]["structural_evidence"]=["hidden"]; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
+ def test_mixed_modes_are_aggregated_separately(self):
+  report=evaluate([sample(),observation_sample()])
+  self.assertEqual(set(report["mode_reports"]),{"controlled_experiment","operational_observation"})
+  self.assertEqual(report["mode_reports"]["operational_observation"]["recommendation"]["decision"],"More Data Required")
  def test_measurement_identity_contract_and_report(self):
   row=evaluate([sample()])["records"][0]
   self.assertEqual(row["measurement_identity"],sample()["measurement_identity"])
+  a=sample(); a["measurement_mode"]="controlled_experiment"; self.assertEqual(evaluate([a])["records"][0]["measurement_mode"],"controlled_experiment")
+  a=sample(); a["measurement_mode"]="unknown"; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
   a=sample(); del a["measurement_identity"]; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
   a=sample(); del a["measurement_identity"]["benchmark_id"]; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")
   a=sample(); a["measurement_identity"]["unknown"]="value"; self.assertEqual(evaluate([a])["records"][0]["status"],"unavailable")

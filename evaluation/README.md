@@ -33,3 +33,16 @@ python -m unittest evaluation.test_operational
 ```
 
 Recommendationは`Retain`、`Change Candidate`、`More Data Required`だけです。各Experiment cohortについて総Run数、品質合格数、Regression数、`wall_time_seconds`、`retries`、`reverification`、`post_report_rework`および`governance_violations`の取得数、測定不能数、理由と中央値をReportへ再構築します。Quality不合格Runは破棄せずRegression数へ残しますが、Performance中央値には含めません。両cohortに品質合格Sampleが3件以上あり、全指標が取得済みで、固定条件、Configuration、RubricおよびCalibrationが比較可能な場合にだけ主指標`wall_time_seconds`の中央値を比較します。Candidate中央値が厳密に小さければ`Change Candidate`、同等以上なら`Retain`です。比較対象不足、各cohortのSample不足、指標不足、品質Regression、設定不明、Rubric不一致、Calibration不一致または比較不能では`More Data Required`を返します。判定は観測上の候補提示であり、因果関係を断定せず、結果からTask、Model、Agent設定、`AGENTS.md`またはLifecycleを自動変更しません。
+
+## Operational Observation Mode
+
+`measurement_mode: operational_observation` は、固定Benchmark比較とは別に、実開発Taskの実行単位をSanitized Recordとして読むModeです。`observation_identity`には`T-xxxxx`形式のTask ID、非秘密の実行識別子および`agents_revision`だけを置きます。中断・再開は別の実行識別子で別Recordにできます。
+
+Observation RecordはRole、Task Type、Risk、実際のModel／Reasoning、Predicted／Realized Difficulty、Quality、取得可能なPerformance・Waiting・Friction Metricと`unavailable_reason`だけを許可します。`benchmark_id`、Snapshot／Prompt Version、Experiment Axis、Baseline、Candidate、Task本文、Prompt、Command／Error本文、Secret、Credential、Token、Flag、認証情報、非公開思考およびHost固有Pathは拒否します。Metric未取得は`null`と同名の`unavailable_reason`で記録し、推測値または`0`に置換しません。
+
+Observation ModeはModel、`AGENTS.md`、実装設定またはBaselineの性能比較を行いません。Sample数や取得済みMetricにかかわらずRecommendationは常に`More Data Required`であり、自動最適化・自動設定変更・外部送信・Git操作・Agent起動・書込みを行いません。固定比較RecordとObservation Recordを同じ入力へ渡した場合も、EvaluatorはModeごとのReportとして分離します。
+
+```powershell
+python evaluation/operational.py --records evaluation/fixtures/observation-sample.json
+python -m unittest evaluation.test_operational
+```

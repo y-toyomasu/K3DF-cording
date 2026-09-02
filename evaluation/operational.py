@@ -13,9 +13,19 @@ AXES = ("change_surface", "uncertainty", "integration", "verification", "safety_
 BANDS = ((3, "Routine"), (7, "Low"), (11, "Medium"), (15, "High"), (18, "Very High"))
 CONFIDENCE = {"low", "medium", "high"}
 DECISIONS = {"Retain", "Change Candidate", "More Data Required"}
+CONTROLLED_EXPERIMENT = "controlled_experiment"
+OPERATIONAL_OBSERVATION = "operational_observation"
 PROHIBITED_FIELDS = {"task_body", "prompt", "command", "error", "host_path", "secret", "credential", "token", "flag", "authentication", "execution_secret", "private_reasoning"}
 REQUIRED_SECTIONS = {"measurement_identity", "experiment_axis", "comparison_class", "configuration", "predicted_difficulty", "realized_difficulty", "quality", "performance", "process_waiting", "execution_friction", "unavailable_reason"}
 OPTIONAL_SECTIONS = {"metadata"}
+OBSERVATION_REQUIRED_SECTIONS = {
+    "measurement_mode", "observation_identity", "comparison_class", "actual_configuration",
+    "predicted_difficulty", "realized_difficulty", "quality", "performance",
+    "process_waiting", "execution_friction", "unavailable_reason",
+}
+OBSERVATION_IDENTITY_FIELDS = {"task_id", "execution_id", "agents_revision"}
+ACTUAL_CONFIGURATION_FIELDS = {"model", "reasoning"}
+OBSERVATION_CLASS_FIELDS = {"role", "task_type", "risk"}
 IDENTITY_FIELDS = {"benchmark_id", "snapshot_version", "prompt_version", "agents_revision"}
 EXPERIMENT_FIELDS = {"name", "baseline", "candidate"}
 EXPERIMENT_AXES = {"model_reasoning", "agents_revision"}
@@ -25,6 +35,7 @@ QUALITY_FIELDS = {"passed", "acceptance_criteria", "build_test", "rework", "gove
 PERFORMANCE_FIELDS = {"wall_time_seconds", "time_to_first_tool_seconds", "tool_calls", "input_tokens", "output_tokens", "cost"}
 WAITING_FIELDS = {"active_seconds", "human_wait_seconds", "dependency_wait_seconds", "review_wait_seconds"}
 FRICTION_FIELDS = {"tool_errors", "retries", "reverification", "post_report_rework"}
+OBSERVATION_UNAVAILABLE_FIELDS = PERFORMANCE_FIELDS | WAITING_FIELDS | FRICTION_FIELDS
 COMPARISON_FIELDS = {"role", "task_type", "difficulty_band", "risk"}
 METADATA_FIELDS = {"agents_version"}
 UNAVAILABLE_FIELDS = PERFORMANCE_FIELDS | WAITING_FIELDS | FRICTION_FIELDS | {"tokens", "waiting_seconds", "actual_model", "actual_reasoning"}
@@ -168,9 +179,12 @@ def _experiment_axis(value: Any) -> dict[str, Any]:
         raise ValidationError("experiment axis values must differ")
     return {"name":name, "baseline":values[0], "candidate":values[1]}
 
-def _validate(record: dict[str, Any]) -> dict[str, Any]:
+def _validate_controlled(record: dict[str, Any]) -> dict[str, Any]:
     _reject_prohibited(record)
-    if not isinstance(record, dict) or not REQUIRED_SECTIONS <= set(record) or set(record) - REQUIRED_SECTIONS - OPTIONAL_SECTIONS: raise ValidationError("record sections are invalid")
+    if not isinstance(record, dict) or not REQUIRED_SECTIONS <= set(record) or set(record) - REQUIRED_SECTIONS - OPTIONAL_SECTIONS - {"measurement_mode"}: raise ValidationError("record sections are invalid")
+    mode = record.get("measurement_mode")
+    if mode not in (None, CONTROLLED_EXPERIMENT):
+        raise ValidationError("controlled experiment measurement mode is invalid")
     measurement_identity = _measurement_identity(record["measurement_identity"])
     experiment_axis = _experiment_axis(record["experiment_axis"])
     config, config_complete = _configuration(record["configuration"])
@@ -199,10 +213,81 @@ def _validate(record: dict[str, Any]) -> dict[str, Any]:
     recommended_cohort = _configuration_identity(config, "recommended")
     configuration_cohort = _configuration_identity(config, "actual")
     metrics_complete = performance[PRIMARY_METRIC] is not None
-    return {"measurement_identity":measurement_identity, "experiment_axis":experiment_axis, "comparison_class":comparison, "metadata":metadata, "configuration":config, "configuration_complete":config_complete, "predicted":predicted, "realized":realized,
+    return {"measurement_mode":CONTROLLED_EXPERIMENT, "measurement_identity":measurement_identity, "experiment_axis":experiment_axis, "comparison_class":comparison, "metadata":metadata, "configuration":config, "configuration_complete":config_complete, "predicted":predicted, "realized":realized,
             "prediction_error":realized["total"]-predicted["total"], "quality":quality, "performance":performance,
             "process_waiting":waiting, "execution_friction":friction, "unavailable_reason":unavailable, "realized_evidence":evidence,
             "recommended_cohort":recommended_cohort, "configuration_cohort":configuration_cohort, "metrics_complete":metrics_complete}
+
+def _observation_identity(value: Any) -> dict[str, str]:
+    source = _allowlist("observation identity", value, OBSERVATION_IDENTITY_FIELDS)
+    if set(source) != OBSERVATION_IDENTITY_FIELDS:
+        raise ValidationError("observation identity is incomplete")
+    task_id = _text(source["task_id"], "observation task ID", 80)
+    execution_id = _text(source["execution_id"], "observation execution ID", 80)
+    revision = _text(source["agents_revision"], "agents revision", 64)
+    if not re.fullmatch(r"T-[0-9]{5}", task_id):
+        raise ValidationError("observation task ID is invalid")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}", execution_id):
+        raise ValidationError("observation execution ID is invalid")
+    if not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", revision):
+        raise ValidationError("agents revision is invalid")
+    return {"task_id": task_id, "execution_id": execution_id, "agents_revision": revision}
+
+def _quality(value: Any) -> dict[str, Any]:
+    source = _allowlist("quality", value, QUALITY_FIELDS)
+    if set(source) != QUALITY_FIELDS or type(source["passed"]) is not bool or type(source["regression"]) is not bool:
+        raise ValidationError("quality record is incomplete")
+    return {
+        "passed": source["passed"],
+        "acceptance_criteria": _text(source["acceptance_criteria"], "acceptance status", 40),
+        "build_test": _text(source["build_test"], "build test status", 40),
+        "rework": _number(source["rework"], "rework", True),
+        "governance_violations": _number(source["governance_violations"], "governance violations", True),
+        "regression": source["regression"],
+    }
+
+def _observation_difficulty(value: Any) -> dict[str, Any]:
+    allowed = {"rubric_version", "axes", "total", "band", "confidence"}
+    if not isinstance(value, dict) or set(value) != allowed:
+        raise ValidationError("observation difficulty record is invalid")
+    return difficulty(value)
+
+def _validate_observation(record: dict[str, Any]) -> dict[str, Any]:
+    _reject_prohibited(record)
+    if not isinstance(record, dict) or set(record) != OBSERVATION_REQUIRED_SECTIONS:
+        raise ValidationError("observation record sections are invalid")
+    if record["measurement_mode"] != OPERATIONAL_OBSERVATION:
+        raise ValidationError("observation measurement mode is invalid")
+    identity = _observation_identity(record["observation_identity"])
+    actual_input = _allowlist("actual configuration", record["actual_configuration"], ACTUAL_CONFIGURATION_FIELDS)
+    if set(actual_input) != ACTUAL_CONFIGURATION_FIELDS:
+        raise ValidationError("actual configuration is incomplete")
+    actual = {key: _text(actual_input[key], "actual configuration", 80) for key in ACTUAL_CONFIGURATION_FIELDS}
+    predicted = _observation_difficulty(record["predicted_difficulty"])
+    realized = _observation_difficulty(record["realized_difficulty"])
+    comparison_input = _allowlist("comparison class", record["comparison_class"], OBSERVATION_CLASS_FIELDS)
+    if set(comparison_input) != OBSERVATION_CLASS_FIELDS:
+        raise ValidationError("comparison class is incomplete")
+    comparison = {key: _text(comparison_input[key], key, 80) for key in OBSERVATION_CLASS_FIELDS}
+    unavailable_input = _allowlist("unavailable reason", record["unavailable_reason"], OBSERVATION_UNAVAILABLE_FIELDS)
+    unavailable = {key: _text(value, "unavailable reason") for key, value in unavailable_input.items()}
+    performance = _measurements("performance", record["performance"], PERFORMANCE_FIELDS, unavailable)
+    waiting = _measurements("process waiting", record["process_waiting"], WAITING_FIELDS, unavailable)
+    friction = _measurements("execution friction", record["execution_friction"], FRICTION_FIELDS, unavailable, True)
+    return {
+        "measurement_mode": OPERATIONAL_OBSERVATION,
+        "observation_identity": identity,
+        "comparison_class": comparison,
+        "actual_configuration": actual,
+        "predicted": predicted,
+        "realized": realized,
+        "prediction_error": realized["total"] - predicted["total"],
+        "quality": _quality(record["quality"]),
+        "performance": performance,
+        "process_waiting": waiting,
+        "execution_friction": friction,
+        "unavailable_reason": unavailable,
+    }
 
 def _metric_value(item: dict[str, Any], metric: str) -> Any:
     if metric == PRIMARY_METRIC: return item["performance"][metric]
@@ -224,12 +309,12 @@ def _cohort_summary(items: list[dict[str, Any]], axis_value: Any = None, role: s
             "metrics":metrics, "metric_sample_count":metrics[PRIMARY_METRIC]["sample_count"],
             "performance_metric":{"name":PRIMARY_METRIC, "direction":"lower_is_better", "median":metrics[PRIMARY_METRIC]["median"]}}
 
-def evaluate(records: list[dict[str, Any]]) -> dict[str, Any]:
+def _evaluate_controlled(records: list[dict[str, Any]]) -> dict[str, Any]:
     rendered, valid = [], []
     invalid_records = 0
     for record in records:
         try:
-            item = _validate(record); rendered.append(item); valid.append(item)
+            item = _validate_controlled(record); rendered.append(item); valid.append(item)
         except ValidationError as exc:
             rendered.append({"status":"unavailable", "unavailable_reason":str(exc)})
             invalid_records += 1
@@ -332,6 +417,84 @@ def evaluate(records: list[dict[str, Any]]) -> dict[str, Any]:
                     "constraints":"observational only; no causal claim, automatic change, or unapproved performance threshold"}
     assert recommendation["decision"] in DECISIONS
     return {"schema_version":"1.0","read_only":True,"external_send":False,"git_operations":False,"agent_start":False,"automatic_actions":False,"records":rendered,"recommendation":recommendation}
+
+def _observation_metric(item: dict[str, Any], metric: str) -> Any:
+    if metric in PERFORMANCE_FIELDS:
+        return item["performance"][metric]
+    if metric in WAITING_FIELDS:
+        return item["process_waiting"][metric]
+    if metric in FRICTION_FIELDS:
+        return item["execution_friction"][metric]
+    return item["quality"][metric]
+
+def _observation_summary(items: list[dict[str, Any]]) -> dict[str, Any]:
+    metrics = {}
+    for metric in sorted(PERFORMANCE_FIELDS | WAITING_FIELDS | FRICTION_FIELDS | {"governance_violations"}):
+        values = [_observation_metric(item, metric) for item in items]
+        measured = [value for value in values if value is not None]
+        reasons = sorted({item["unavailable_reason"][metric] for item in items
+                          if _observation_metric(item, metric) is None and metric in item["unavailable_reason"]})
+        metrics[metric] = {
+            "sample_count": len(measured),
+            "unavailable_count": len(values) - len(measured),
+            "unavailable_reasons": reasons,
+            "median": statistics.median(measured) if measured else None,
+        }
+    return {
+        "record_count": len(items),
+        "quality_passing_record_count": len([item for item in items if _quality_passes(item["quality"])]),
+        "quality_non_passing_record_count": len([item for item in items if not _quality_passes(item["quality"])]),
+        "metrics": metrics,
+    }
+
+def _evaluate_observations(records: list[dict[str, Any]]) -> dict[str, Any]:
+    rendered, valid = [], []
+    for record in records:
+        try:
+            item = _validate_observation(record)
+            rendered.append(item)
+            valid.append(item)
+        except ValidationError as exc:
+            rendered.append({"measurement_mode": OPERATIONAL_OBSERVATION, "status": "unavailable", "unavailable_reason": str(exc)})
+    return {
+        "schema_version": "1.1",
+        "measurement_mode": OPERATIONAL_OBSERVATION,
+        "read_only": True,
+        "external_send": False,
+        "git_operations": False,
+        "agent_start": False,
+        "automatic_actions": False,
+        "records": rendered,
+        "observation_summary": _observation_summary(valid),
+        "recommendation": {
+            "decision": "More Data Required",
+            "reason": "operational observations are not controlled experiments",
+            "comparison_performed": False,
+            "automatic_change": False,
+        },
+    }
+
+def evaluate(records: list[dict[str, Any]]) -> dict[str, Any]:
+    """Evaluate records without mixing controlled and operational conclusions."""
+    observations = [record for record in records if isinstance(record, dict)
+                    and record.get("measurement_mode") == OPERATIONAL_OBSERVATION]
+    if not observations:
+        return _evaluate_controlled(records)
+    if len(observations) == len(records):
+        return _evaluate_observations(records)
+    controlled = [record for record in records if record not in observations]
+    return {
+        "schema_version": "1.1",
+        "read_only": True,
+        "external_send": False,
+        "git_operations": False,
+        "agent_start": False,
+        "automatic_actions": False,
+        "mode_reports": {
+            CONTROLLED_EXPERIMENT: _evaluate_controlled(controlled),
+            OPERATIONAL_OBSERVATION: _evaluate_observations(observations),
+        },
+    }
 
 def main() -> None:
     parser=argparse.ArgumentParser(); parser.add_argument("--records",required=True,type=Path); args=parser.parse_args()
