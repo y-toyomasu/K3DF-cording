@@ -353,7 +353,7 @@ Capabilityに応じてToolを段階公開する案は、`F-00003` と `F-00012` 
 
 ### Verification
 
-T-00006のTool Registryと基本HTTP Tool、T-00007のStrategy Brief、T-00015のCTF Referee／Flag提出Tool／Ground Truth分離、およびT-00017のHTTP Header／Cookie／Typed Body／Run-scoped Credential Storeは実装済みである。T-00017では、実装済みToolの完全Catalog提示を維持し、Credential IDだけをPlannerへ渡し、Header、Cookie、Body、Scope、Target、Budgetおよび秘密情報非永続化の境界をAgent 77件とDashboard 3件のTestで確認した。TCP、SSH、Shell、Filesystem、Database、ChallengeへのFlag配置およびK3DF侵入深度統合は未実装であり、各将来Taskで本Decisionの境界を検証する。
+T-00006のTool Registryと基本HTTP Tool、T-00007のStrategy Brief、T-00015のCTF Referee／Flag提出Tool／Ground Truth分離、およびT-00017のHTTP Header／Cookie／Typed Body／Run-scoped Credential Storeは実装済みである。T-00017では、実装済みToolの完全Catalog提示を維持し、Credential IDだけをPlannerへ渡し、Header、Cookie、Body、Scope、Target、Budgetおよび秘密情報非永続化の境界をAgent 77件とDashboard 3件のTestで確認した。T-00038〜T-00040で、静的TCP Target Registry、`tcp.scan`、TCP専用Budget、connect-only Executor、共通EvidenceおよびCatalog／Planner統合を実装・検証した。`tcp.scan` は静的Target、許可Port、Action BudgetおよびTCP Budgetを接続前に検証し、Capabilityを自動確定しない。SSH、Shell、Filesystem、Database、ChallengeへのFlag配置およびK3DF侵入深度統合は未実装であり、各将来Taskで本Decisionの境界を検証する。
 
 ## D-00017: Generic capability depth ontology and separate flag objectives
 
@@ -654,7 +654,7 @@ K3ATに静的TCP Target Registry、`tcp.scan` Tool、TCP専用Budget、connect-o
 
 ### Verification
 
-未実装。確認済み構成を事前に`ARCHITECTURE.md`へ追加せず、`T-00038`〜`T-00041`で実装、検証および記録を行う。
+T-00038〜T-00040で、起動時に固定されるTCP Target Registry、`tcp.scan`、TCP専用Budget、connect-only Executor、正規化Evidenceおよび完全Tool Catalog／Planner統合を実装した。K3AT Agent ImageのBuild、Unit Testおよび隔離したSynthetic TCP ServiceによるDocker統合Testに合格した。検証では、許可Target／Portへのconnect-only動作、未許可Portの接続前拒否、Budget不足時の接続前拒否、Target／Port／Socket Errorの非露出、Capability非自動確定を確認した。外部Network、Kimi API Key、Banner取得、Payload送信、TLS Handshake、受信処理、Credential使用および未実装Protocolは検証対象に含めていない。
 
 ## D-00023: Pinned-host-key Challenge SSH sessions
 

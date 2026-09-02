@@ -49,17 +49,25 @@ DashboardはK3ATホストのprivate IPを通じて同一private LAN上の別端�
 
 生成済みTarget PolicyはLocal PolicyとHTTP Executorで共有し、Run中にenvを再読込しない。HTTP Requestは `K3DF_BASE_URL` 配下の `/` から始まるChallenge Pathへ限定され、別scheme・host・port・Originおよびprotocol-relative URLを拒否する。Registry定義はuserinfo、query、fragment、空でないpathを拒否する。
 
-envへ明示したRaspberry PiのIPまたはhostname上のChallenge公開Endpointは許可できるが、未登録のHost OS Service、Management Port、別LAN Addressおよび別Originは許可しない。Registryは明示Portを持つ将来ProtocolのEndpointも保持できるが、現行ExecutorはHTTP(S) Requestだけを実装しており、SSH等のExecutorは存在しない。
+envへ明示したRaspberry PiのIPまたはhostname上のChallenge公開Endpointは許可できるが、未登録のHost OS Service、Management Port、別LAN Addressおよび別Originは許可しない。Registryは明示Portを持つ将来ProtocolのEndpointも保持できるが、SSH等のExecutorは存在しない。
+
+`k3-agent` はProcess開始時に `K3AT_AUTHORIZED_TCP_TARGETS` も一度だけ読み込み、不変のTCP Target Registryを生成する。各TCP TargetはTarget ID、hostnameまたはIPv4、許可Portを持ち、Target IDは最大16件、許可PortはTargetごとに最大4096件へ正規化する。hostnameは起動時に単一IPv4へ解決・固定する。解決失敗、曖昧な解決、loopback、link-local、multicast、unspecified addressおよび無効な設定はfail-closedとする。
+
+TCP Target RegistryはHTTP Exact Origin Policyとは別の接続境界である。`tcp.scan` は登録済みTarget IDと許可Portだけを使い、未登録Target、許可範囲外PortまたはTCP Target未設定をSocket接続前に拒否する。Management Network、Host OS Service、Host filesystemおよびDocker socketを接続対象に含めない。
 
 ## A-00007: K3AT Tool Registry
 
-`k3-agent` はProcess開始時に不変のTool Registryを生成する。各Tool定義はTool Specification、Policy Validator、Executor、Evidence Normalizerを持ち、重複Tool名を拒否する。現行Registryで実装済みのToolは、`method` と `/` から始まる相対Challenge `path`、任意の許可Header、Cookie Credential参照およびTyped Bodyを引数に持つ `http.request` と、candidateだけを引数に持つ`flag.submit`である。旧来のMethod＋PathだけのHTTP引数も有効である。SSH、Database、Filesystemその他のTool Executorは実装していない。
+`k3-agent` はProcess開始時に不変のTool Registryを生成する。各Tool定義はTool Specification、Policy Validator、Executor、Evidence Normalizerを持ち、重複Tool名を拒否する。現行Registryで実装済みのToolは、`method` と `/` から始まる相対Challenge `path`、任意の許可Header、Cookie Credential参照およびTyped Bodyを引数に持つ `http.request`、candidateだけを引数に持つ`flag.submit`、および`target_id`と許可Port配列を引数に持つ`tcp.scan`である。旧来のMethod＋PathだけのHTTP引数も有効である。SSH、Database、Filesystemその他のTool Executorは実装していない。
 
 Registryの完全なTool Catalogと引数SchemaはRun開始時からPlannerへ提示される。PlannerとFallback Plannerは、固定ScenarioではなくGoal、Evidence、現在状態から登録済みTool名と引数を選ぶ。未知Tool、無効引数、境界外TargetはNetwork処理前に拒否される。
 
 Tool実行Policyは、A-00005の同一Target Policy、`K3AT_AUTHORIZED_HTTP_METHODS`、Process開始時に固定する`K3AT_AUTHORIZED_HTTP_HEADERS`、Credentialの種類・Origin・Cookie Scope、および正の整数として固定する `K3AT_MAX_TOOL_CALLS_PER_RUN` による具体的条件を使用する。Budget defaultは30であり、上限到達後はExecutorへ進まない。Capability、ATT&CK Tactic、自己申告Risk、発見段階および旧Authorization集合は非権限Metadataであり、Toolの提示または実行Gateに使用しない。
 
+`tcp.scan` は1 Invocationあたり1〜128個の一意な許可Portだけを受け付け、最大8並列、接続500ms、再試行なし、全体12秒のconnect-only Executorで実行する。TCP専用BudgetはProcess開始時に固定され、既定ではRunあたり256 Portである。Action BudgetまたはTCP Budgetが不足するInvocationは、接続開始前に全体を拒否する。接続成功後は直ちにcloseし、Banner取得、Payload送信、TLS Handshakeまたは受信処理を行わない。
+
 実行済み・Blocked Invocationは、Evidence ID、Invocation ID、Tool名、Timestamp、Action要約、Outcome、HTTP StatusまたはError、bounded result metadataを持つ共通Evidenceとして区別してStateへ保存する。Evidence NormalizerはCapabilityまたはFlagを推測せず、Credentialは既知のResponse FieldだけからSystem側で抽出する。Capability Graphは実行済みHTTP ResponseのEvidenceから導出される観測モデルである。
+
+`tcp.scan` の結果は`open`、`closed`、`timeout`または`unreachable`へ正規化し、Target ID、要求Port、結果、試行数および残Budgetだけをboundedな共通Evidenceへ保存する。生Socket Error、受信Data、解決IPまたはHost名をEvidenceへ保存せず、TCP結果からCapabilityを自動確定しない。
 
 `k3-agent`はRun-scoped Credential StoreをProcess Memory内に持つ。HTTP ExecutorはResponse受信後、`Set-Cookie`、承認済みJSON FieldおよびHTML hidden inputを抽出・登録してからHeader／BodyをRedactし、安全なTool ResultとEvidenceを生成する。同一Runの重複をMemory内比較で除外し、上限超過時は既存CredentialをEvictしない。Kimi、Tool Catalog、Snapshot、Event、Evidence、logおよびDashboardへは`CRED-<UUID>`と種類、Label、Source Evidence、Exact OriginまたはCookie Scope、時刻、状態だけを渡す。生値と復元可能なHashは永続化せず、Run終了時にMemory上の値を破棄してMetadataを`run_ended`とする。
 
