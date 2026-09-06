@@ -701,3 +701,28 @@ K3ATに静的SSH Target Registry、Host Key Policy、Credential Scope、Memory�
 ### Verification
 
 `T-00042`〜`T-00045`で、静的SSH Target Registry、固定Host Key／Credential Scope、Run-scoped Session Store、`ssh.session.open`／`close`およびinternal-only Synthetic SSH検証を実装した。Docker Build、全Unit Test、固定Fingerprintを使う実SSH readiness、成功／失敗Password認証、Host Key不一致、Session／試行上限、実TCP後のネゴシエーションTimeout、Session closeおよびShell／Command／SFTP／Forwarding拒否を確認した。実Target、Management SSH、Host OS、Docker socket、Private Key、SSH Agent、Keyboard Interactive、GSSAPI、Shell、Filesystem、SCPまたはForwarding機能は検証対象外かつ現行機能に含まれない。
+## D-00024: Common Challenge Target
+
+- Status: `Accepted`
+- Date: `2026-09-06`
+- Source: `R-00045`〜`R-00052`、Product Owner承認済みDesign
+
+### Context
+
+HTTP、TCPおよびSSHがProtocol設定ごとにHostを受け取ると、同一Challengeを対象にする保証が弱まり、Tool引数や設定から探索対象を拡張できる余地が生じる。
+
+### Decision
+
+K3ATは起動時に固定した共通Challenge Targetを唯一の探索Hostとして扱う。HTTPは共通IPv4から構成した`http`・80番のBase URLだけを使う。TCPは同一IPv4に対する明示Port Allowlistだけを使い、TCP設定から独立Hostを廃止する。SSHは共通Targetに対応するTCP Target参照、固定Host KeyおよびCredential Scopeだけを使う。`flag.submit`のSystem固定RefereeはChallenge探索Targetの例外とする。
+
+Tool引数およびProtocol設定からHost、IPまたはURLを指定・上書きすることは禁止する。旧TCP設定の独立Hostは非互換として受け付けず、暗黙変換しない。共通Targetまたは必要なProtocol設定が空・不正の場合はNetwork接続前にfail closedとする。Evidence、State、Event、DashboardおよびLogには既存の非露出境界を維持し、新しいHost／URLの生値を追加しない。
+
+### Consequences
+
+- TCP設定とSSH Registryは共通Challenge Targetへ移行する。
+- HTTP、TCPおよびSSHのSynthetic統合検証は同一IPv4を使用する。
+- 既存のPort、Credential、Host Key、Session、Budgetおよび禁止操作の境界は緩和しない。
+
+### Verification
+
+共通Target Context、TCP Host廃止、SSH Registry適合、Synthetic統合Testおよび確認済みArchitecture反映は後続Taskで検証する。
