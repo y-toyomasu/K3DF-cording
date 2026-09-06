@@ -6,12 +6,63 @@
 - Source: <`R-xxxxx`、`A-xxxxx`、`D-xxxxx`、`F-xxxxx` のいずれかと、その参照先を最低1件記録する。関連Taskの `T-xxxxx` は追加参照として記録できるが、`T-xxxxx` 単独ではSourceにできない>
 - Recommended Codex Model: <model name>
 - Recommended Reasoning Effort: <low | medium | high | xhigh | max>
-- Planned Active Time: <`≤15 minutes` | `>15 minutes — exception approved`>
-- Time Box Exception: <none | 15分超過が必要な理由とProduct Ownerの明示承認>
+- Planned Active Time: <`≤30 minutes` | `>30 minutes — exception approved`>
+- Time Box Exception: <none | 30分超過が必要な理由とProduct Ownerの明示承認>
 - Claimed By: <none | Engineering Agent identifier>
 - Claimed At: <none | ISO 8601 timestamp>
 
 > Sourceが存在しないTaskは実装不可。
+
+## Operational Observation Metadata
+
+- Role: <Task LeadがDRAFT時に記録するRole>
+- Task Type: <Task LeadがDRAFT時に記録するTask Type>
+- Risk: <Task LeadがDRAFT時に記録するRisk>
+- Actual Model: <Engineering AgentがCLAIM時に確認できる場合だけ記録する。未取得時はnull>
+- Actual Reasoning: <Engineering AgentがCLAIM時に確認できる場合だけ記録する。未取得時はnull>
+- agents_revision: <Engineering AgentがCLAIM時に40桁または64桁の小文字16進数だけを記録する。未取得時はnull>
+- Predicted Difficulty:
+  - Rubric Version: `1.0`
+  - Change Surface: <0-3>
+  - Uncertainty: <0-3>
+  - Integration: <0-3>
+  - Verification: <0-3>
+  - Safety Risk: <0-3>
+  - Coordination: <0-3>
+  - Total: <0-18>
+  - Band: <Routine | Low | Medium | High | Very High>
+  - Confidence: <low | medium | high>
+- Realized Difficulty:
+  - Rubric Version: `1.0`
+  - Change Surface: <0-3 | null>
+  - Uncertainty: <0-3 | null>
+  - Integration: <0-3 | null>
+  - Verification: <0-3 | null>
+  - Safety Risk: <0-3 | null>
+  - Coordination: <0-3 | null>
+  - Total: <0-18 | null>
+  - Band: <Routine | Low | Medium | High | Very High | null>
+  - Confidence: <low | medium | high | null>
+  - Structural Evidence: <1-8件の非秘密な構造的根拠 | null>
+- Quality:
+  - Acceptance Criteria: <pass | fail | not_applicable | null>
+  - Build / Test: <pass | fail | not_applicable | null>
+  - Rework: <count | null>
+  - Governance Violation: <count | null>
+  - Regression: <true | false | null>
+- Process Waiting:
+  - active_seconds: <number | null>
+  - human_wait_seconds: <number | null>
+  - dependency_wait_seconds: <number | null>
+  - review_wait_seconds: <number | null>
+- Execution Friction:
+  - tool_errors: <count | null>
+  - retries: <count | null>
+  - reverification: <count | null>
+  - post_report_rework: <count | null>
+- Unavailable Reason: <値がnullの同名Metricだけに対応する理由。実測値と併記しない>
+
+> 将来作成されるEngineering Agent対象の実開発Taskだけに適用する。Task本文、Prompt、Command／Error本文、Host固有絶対Path、Secret、Credential、Token、Flag、認証情報、実行秘密および非公開思考は記録しない。記録だけでEvaluator実行、Benchmark比較、Model／Agent設定変更、推薦または外部送信を行わない。
 
 ## Intent
 
