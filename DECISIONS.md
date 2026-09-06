@@ -353,7 +353,7 @@ Capabilityに応じてToolを段階公開する案は、`F-00003` と `F-00012` 
 
 ### Verification
 
-T-00006のTool Registryと基本HTTP Tool、T-00007のStrategy Brief、T-00015のCTF Referee／Flag提出Tool／Ground Truth分離、およびT-00017のHTTP Header／Cookie／Typed Body／Run-scoped Credential Storeは実装済みである。T-00017では、実装済みToolの完全Catalog提示を維持し、Credential IDだけをPlannerへ渡し、Header、Cookie、Body、Scope、Target、Budgetおよび秘密情報非永続化の境界をAgent 77件とDashboard 3件のTestで確認した。T-00038〜T-00040で、静的TCP Target Registry、`tcp.scan`、TCP専用Budget、connect-only Executor、共通EvidenceおよびCatalog／Planner統合を実装・検証した。`tcp.scan` は静的Target、許可Port、Action BudgetおよびTCP Budgetを接続前に検証し、Capabilityを自動確定しない。SSH、Shell、Filesystem、Database、ChallengeへのFlag配置およびK3DF侵入深度統合は未実装であり、各将来Taskで本Decisionの境界を検証する。
+T-00006のTool Registryと基本HTTP Tool、T-00007のStrategy Brief、T-00015のCTF Referee／Flag提出Tool／Ground Truth分離、およびT-00017のHTTP Header／Cookie／Typed Body／Run-scoped Credential Storeは実装済みである。T-00017では、実装済みToolの完全Catalog提示を維持し、Credential IDだけをPlannerへ渡し、Header、Cookie、Body、Scope、Target、Budgetおよび秘密情報非永続化の境界をAgent 77件とDashboard 3件のTestで確認した。T-00038〜T-00040で、静的TCP Target Registry、`tcp.scan`、TCP専用Budget、connect-only Executor、共通EvidenceおよびCatalog／Planner統合を実装・検証した。T-00042〜T-00045で、静的SSH Target Registry、固定Host Key／Credential Scope、Memory限定Session Store、`ssh.session.open`／`close`およびinternal-only Synthetic SSH統合検証を実装・検証した。SSHは固定IPv4、許可Port、Host Key照合後のPassword認証およびBudgetへ拘束され、Shell、Filesystem、DatabaseおよびChallengeへのFlag配置は未実装である。
 
 ## D-00017: Generic capability depth ontology and separate flag objectives
 
@@ -528,6 +528,7 @@ Tool Registry、HTTP Executorおよび永続化前のTool Resultに秘密値解�
 ### Verification
 
 `T-00017`でRun-scoped Credential Store、`Set-Cookie`／既知JSON Field／既知HTML hidden inputの抽出、重複・上限処理、Metadata、Exact Origin／Cookie Scope、Secret非永続化、Header／Cookie Policy、JSON／Form／Text Body、Credential参照、Response／Blocked／Executor Error Redaction、Evidence、Planner入力、Dashboardおよび既存Method＋Path互換性を実装した。K3AT Agent 77件とDashboard 3件の自動Test、K3AT／Dashboard image Build、Desktop 1280pxおよび狭幅390pxのGUI確認に合格した。GUIではCredential Metadata 2件、既存Run／Finding／Strategy Brief表示、横Overflowなし、操作要素なしおよび合成生値Marker不在を確認した。外部Target、Kimi API Keyおよび実Credentialは使用していない。
+`T-00042`〜`T-00045`で、このStoreのavailableな`password` CredentialだけをSSH TargetのExact Originと照合して利用するSession境界を追加した。生PasswordはSession、Tool Result、Evidence、Snapshot、Event、Dashboardまたはlogへ保存しない。
 
 ## D-00020: Single-demo-run CTF Referee with a shared validation seed
 
@@ -699,4 +700,4 @@ K3ATに静的SSH Target Registry、Host Key Policy、Credential Scope、Memory�
 
 ### Verification
 
-未実装。確認済み構成を事前に`ARCHITECTURE.md`へ追加せず、`T-00042`〜`T-00046`で実装、検証および記録を行う。
+`T-00042`〜`T-00045`で、静的SSH Target Registry、固定Host Key／Credential Scope、Run-scoped Session Store、`ssh.session.open`／`close`およびinternal-only Synthetic SSH検証を実装した。Docker Build、全Unit Test、固定Fingerprintを使う実SSH readiness、成功／失敗Password認証、Host Key不一致、Session／試行上限、実TCP後のネゴシエーションTimeout、Session closeおよびShell／Command／SFTP／Forwarding拒否を確認した。実Target、Management SSH、Host OS、Docker socket、Private Key、SSH Agent、Keyboard Interactive、GSSAPI、Shell、Filesystem、SCPまたはForwarding機能は検証対象外かつ現行機能に含まれない。
