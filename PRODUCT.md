@@ -89,6 +89,7 @@
 - `R-00050`: SSH Sessionは`SESSION-<UUID>`で識別し、Process Memory内だけに保持する。Idle Timeoutは5分、自動再接続なし、Process終了時に全Sessionをcloseする。初期範囲ではShell、PTY、SFTP、SCP、Port Forwarding、Agent Forwarding、X11および環境変数送信を許可しない。
 - `R-00051`: SSH結果は安全なOutcomeとSession Metadataだけへ正規化する。Password、Host Key内容、SSH Banner、暗号交渉情報、生Error、解決IPまたは受信DataをKimi K3、Evidence、State、Event、Dashboard、Logまたは永続状態へ公開しない。
 - `R-00052`: すべてのChallenge向けNetwork Toolは、起動時に固定した共通Challenge Targetを使用し、Tool引数・Protocol設定からHost、IPまたはURLを指定または上書きできない。ProtocolごとのPort、Credential、Host Key、Budget等の制約は維持する。
+- `R-00053`: K3DFは、K3ATが固定手順に依存せず複数のAttack Pathを探索できる、隔離された脆弱Challengeを提供する。脆弱性は再現性・隔離性・依存固定が満たせる箇所だけ実在CVEと公開PoCを使用し、それ以外はCVE-inspiredなK3DF固有の簡易実装とする。実在CVEとCVE-inspired実装を明確に区別する。AP-03のPrivilege EscalationはChallenge Container内の疑似`admin`状態に限り、Host root、Docker socket、任意Shell、任意Command、任意Port ForwardingまたはChallenge外Networkへの到達を許可しない。Capabilityは実行済みEvidenceから観測し、正解経路、Flag値またはFlag配置をK3ATへ事前提供しない。
 
 ## Feedback records
 

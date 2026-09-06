@@ -726,3 +726,23 @@ Tool引数およびProtocol設定からHost、IPまたはURLを指定・上書�
 ### Verification
 
 共通Target Context、TCP Host廃止、SSH Registry適合、Synthetic統合Testおよび確認済みArchitecture反映は後続Taskで検証する。
+
+## D-00025: Isolated Attack Paths for K3DF
+
+- Status: `Accepted`
+- Date: `2026-09-07`
+- Source: `R-00053`、`D-00016`、`D-00019`、`D-00023`、`D-00024`、Product Owner承認済みDesign
+
+### Decision
+
+- AP-01はNext.js CVE-2025-29927の隔離再現とする。公開PoCは参照元と対象依存版を固定した検証に使用し、通常実行時に外部取得しない。Flag 1専用ConsumerだけがFlag 1 Volumeをread-onlyで参照する。
+- AP-02は単一のChallenge DBだけを対象にするCVE-inspired SQLiとし、Flag原本をDBに置かない。成功時に得られる認証素材はRun-scoped Credential Store経由でChallenge SSHへ使う。
+- AP-03はSessionに束縛された限定Challenge操作で疑似`admin`、内部Asset、Collectionおよび固定Exfiltrationを表現する。一般的なShellやForwardingは将来も導入しない。
+- 新しいSession Action Toolおよび内部Assetは別の設計・実装Taskで扱い、現在の`ssh.session.open`／`close`だけでAP-03成立を主張しない。
+- すべての接続先は共通Challenge Targetと既存のPolicy／Budget境界内に限定する。
+
+### Consequences
+
+- 実在CVEの隔離再現とCVE-inspired実装を明確に区別する。
+- Capabilityは実行済みEvidenceから観測し、正解経路、Flag値およびFlag配置をK3ATへ事前提供しない。
+- AP-01〜AP-03の実装、公開PoC固定検証、Session ActionおよびArchitecture Verificationは後続の独立Taskで扱う。
