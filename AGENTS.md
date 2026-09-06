@@ -59,6 +59,16 @@ Taskは`tasks/TEMPLATE.md`を基に作成し、次の8 Statusのいずれかを�
 - 分割不能な場合だけ、Taskの`Planned Active Time`へ`>30 minutes — exception approved`、`Time Box Exception`へ必要性とProduct Ownerの明示承認を記録する。通常は`Planned Active Time: ≤30 minutes`および`Time Box Exception: none`とする。
 - 30分は計画目標であり、Engineering Agentの強制終了、Lifecycle Gate、検証省略または`BLOCKED`理由に使用しない。実時間は信頼できる情報源から取得できる場合だけ記録し、推測しない。
 
+### Operational Observation Metadata
+
+- この節は本規約施行後に作成されるEngineering Agent対象の実開発Taskへ適用し、既存の公開済み、取得済みまたは`DONE` Taskへ遡及適用しない。記録はEvaluatorへの入力候補であり、TaskのLifecycle Gate、実装Dependency、受入れ条件、Benchmark比較、Model／Agent設定変更または自動推薦に使用しない。
+- Task LeadはDRAFT時に`Role`、`Task Type`、`Risk`およびRubric Version `1.0`の`Predicted Difficulty`を記録する。Difficultyは`Change Surface`、`Uncertainty`、`Integration`、`Verification`、`Safety Risk`、`Coordination`の六軸を各0〜3で評価し、`Total`、`Band`および`Confidence`を併記する。採点を理由にDesign Agentへ差し戻さない。
+- Engineering AgentはCLAIM時に実際に使用するModel、Reasoningおよび実行時`AGENTS.md`のGit object IDを`agents_revision`として記録する。`agents_revision`は40桁または64桁の小文字16進数だけとし、取得不能時は`null`とする。本文、取得CommandおよびHost固有絶対Pathは記録しない。
+- Engineering AgentはREPORT時にRubric Version `1.0`の`Realized Difficulty`、1〜8件の非秘密な構造的根拠、`Quality`、`Process Waiting`、`Execution Friction`および`Unavailable Reason`を記録する。根拠は変更範囲、検証件数、依存関係または工程結果などの構造情報に限定し、Task本文やPrompt本文を記録しない。
+- 取得できないMetricは推測値または`0`へ置換せず`null`と同名の`unavailable_reason`を記録し、実測値と理由を併記しない。取得待ち、依存待ち、Review／Acceptance待ちはActive作業時間に含めない。
+- Task本文、Prompt、Command／Error本文、Secret、Credential、Token、Flag、認証情報、実行秘密、非公開思考およびHost固有絶対PathをOperational Observation MetadataまたはReportへ含めない。専用Benchmark、追加計測、再実行または後追い復元を要求しない。
+- 既存のTask記録、Product文書、Evaluatorおよび安全境界を変更せず、Operational Observationの記録だけを理由に既存Taskを再採点しない。30分のActive作業目標は計画上の負荷制限であり、強制終了、検証省略または自動停止には使用しない。
+
 ### Task Lead: `DRAFT → SYNC → PUBLISH`
 
 1. **DRAFT**: 未使用IDで新規Taskを`DESIGN`として作成する。
