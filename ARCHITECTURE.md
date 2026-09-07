@@ -49,15 +49,15 @@ DashboardはK3ATホストのprivate IPを通じて同一private LAN上の別端�
 
 生成済みTarget PolicyはLocal PolicyとHTTP Executorで共有し、Run中にenvを再読込しない。HTTP Requestは `K3DF_BASE_URL` 配下の `/` から始まるChallenge Pathへ限定され、別scheme・host・port・Originおよびprotocol-relative URLを拒否する。Registry定義はuserinfo、query、fragment、空でないpathを拒否する。
 
-HTTP Targetは入力IPv4から構成する`http://<IPv4>`だけを許可する。未登録のHost OS Service、Management Port、別LAN Addressおよび別Originは許可しない。SSHは別の静的Registryで、既存TCP Targetの解決済みactive IPv4、許可Port、固定Host Key fingerprintおよびCredential取得元のHTTP Exact Originに拘束する。任意Host、Management SSH、TOFUおよびHost Key検証省略は許可しない。
+HTTP Targetは入力IPv4から構成する`http://<IPv4>`だけを許可する。未登録のHost OS Service、Management Port、別LAN Addressおよび別Originは許可しない。SSHは別の起動時固定Registryで、`target_id`と整数またはPort Rangeだけを受け取り、共通Challenge IPv4、展開済み許可Port集合および`K3DF_BASE_URL`から導出したHTTP Exact Originへ拘束する。SSH Registry、TCP RegistryまたはTool引数からHost、IP、URL、個別Originを指定できず、Host Key設定、TOFUおよびHost Key検証は実装しない。
 
-`k3-agent` はProcess開始時に `K3AT_AUTHORIZED_TCP_TARGETS` も一度だけ読み込み、不変のTCP Target Registryを生成する。各TCP TargetはTarget ID、hostnameまたはIPv4、許可Portを持ち、Target IDは最大16件、許可PortはTargetごとに最大4096件へ正規化する。hostnameは起動時に単一IPv4へ解決・固定する。解決失敗、曖昧な解決、loopback、link-local、multicast、unspecified addressおよび無効な設定はfail-closedとする。
+`k3-agent` はProcess開始時に `K3AT_AUTHORIZED_TCP_TARGETS` も一度だけ読み込み、不変のTCP Target Registryを生成する。各TCP TargetはTarget ID、hostnameまたはIPv4、許可Portを持ち、Target IDは最大16件、許可PortはTargetごとに最大4096件へ正規化する。hostnameは起動時に単一IPv4へ解決・固定する。解決失敗、曖昧な解決、loopback、link-local、multicast、unspecified addressおよび無効な設定はfail-closedとする。SSHはこのTCP Registryを参照せず、共通Challenge IPv4へ独立したSSH Port Registryで接続する。
 
 TCP Target RegistryはHTTP Exact Origin Policyとは別の接続境界である。`tcp.scan` は登録済みTarget IDと許可Portだけを使い、未登録Target、許可範囲外PortまたはTCP Target未設定をSocket接続前に拒否する。Management Network、Host OS Service、Host filesystemおよびDocker socketを接続対象に含めない。
 
 ## A-00007: K3AT Tool Registry
 
-`k3-agent` はProcess開始時に不変のTool Registryを生成する。各Tool定義はTool Specification、Policy Validator、Executor、Evidence Normalizerを持ち、重複Tool名を拒否する。現行Registryで実装済みのToolは、`method` と `/` から始まる相対Challenge `path`、任意の許可Header、Cookie Credential参照およびTyped Bodyを引数に持つ `http.request`、candidateだけを引数に持つ`flag.submit`、`target_id`と許可Port配列を引数に持つ`tcp.scan`、および`target_id`、Username、Password Credential参照だけを引数に持つ`ssh.session.open`／Session IDだけを受け取る`ssh.session.close`である。旧来のMethod＋PathだけのHTTP引数も有効である。Database、Filesystemその他のTool Executorは実装していない。
+`k3-agent` はProcess開始時に不変のTool Registryを生成する。各Tool定義はTool Specification、Policy Validator、Executor、Evidence Normalizerを持ち、重複Tool名を拒否する。現行Registryで実装済みのToolは、`method` と `/` から始まる相対Challenge `path`、任意の許可Header、Cookie Credential参照およびTyped Bodyを引数に持つ `http.request`、candidateだけを引数に持つ`flag.submit`、`target_id`と許可Port配列を引数に持つ`tcp.scan`、および`target_id`、単一整数`port`、Username、Password Credential参照を引数に持つ`ssh.session.open`／Session IDだけを受け取る`ssh.session.close`である。SSH Registryは共通Challenge IPv4、整数またはRangeから展開した許可Port集合および`K3DF_BASE_URL`由来のCredential Originを使用し、Host Key設定を持たない。旧来のMethod＋PathだけのHTTP引数も有効である。Database、Filesystemその他のTool Executorは実装していない。
 
 Registryの完全なTool Catalogと引数SchemaはRun開始時からPlannerへ提示される。PlannerとFallback Plannerは、固定ScenarioではなくGoal、Evidence、現在状態から登録済みTool名と引数を選ぶ。未知Tool、無効引数、境界外TargetはNetwork処理前に拒否される。
 
@@ -71,7 +71,7 @@ Tool実行Policyは、A-00005の同一Target Policy、`K3AT_AUTHORIZED_HTTP_METH
 
 `k3-agent`はRun-scoped Credential StoreをProcess Memory内に持つ。HTTP ExecutorはResponse受信後、`Set-Cookie`、承認済みJSON FieldおよびHTML hidden inputを抽出・登録してからHeader／BodyをRedactし、安全なTool ResultとEvidenceを生成する。同一Runの重複をMemory内比較で除外し、上限超過時は既存CredentialをEvictしない。Kimi、Tool Catalog、Snapshot、Event、Evidence、logおよびDashboardへは`CRED-<UUID>`と種類、Label、Source Evidence、Exact OriginまたはCookie Scope、時刻、状態だけを渡す。生値と復元可能なHashは永続化せず、Run終了時にMemory上の値を破棄してMetadataを`run_ended`とする。
 
-SSH SessionはProcess Memory内の`SESSION-<UUID>`とlive Transportだけを保持する。`ssh.session.open`はAction Budgetと接続試行Budgetを接続前に確保し、固定IPv4へ3秒以内に接続・SSHネゴシエーションを行い、受信Host KeyのSHA-256 fingerprintを比較してから`fallback=False`のPassword認証へ進む。認証は最大5秒、Invocation全体は最大8秒である。成功時だけSessionを確定し、失敗試行はBudgetを消費してもSessionを生成しない。Sessionは最大4件、試行はRunあたり最大8件、Idle Timeoutは5分であり、終了時にcloseする。Shell、Channel、PTY、Command、SFTP、SCP、Forwarding、SSH Agent、Private Key、Keyboard Interactive、GSSAPIおよび環境変数送信は現行機能に含まれない。Tool ResultとEvidenceは安全なOutcomeとSession Metadataだけで、生Password、Host Key、Banner、暗号交渉情報、生Error、解決IPまたは受信Dataを含めない。
+SSH SessionはProcess Memory内の`SESSION-<UUID>`とlive Transportだけを保持する。`ssh.session.open`はAction Budgetと接続試行Budgetを接続前に確保し、共通Challenge IPv4の許可Portへ3秒以内に接続・SSHネゴシエーションを行い、`fallback=False`のPassword認証へ進む。認証は最大5秒、Invocation全体は最大8秒である。成功時だけSessionを確定し、失敗試行はBudgetを消費してもSessionを生成しない。Sessionは最大4件、試行はRunあたり最大8件、Idle Timeoutは5分であり、終了時にcloseする。Shell、Channel、PTY、Command、SFTP、SCP、Forwarding、SSH Agent、Private Key、Keyboard Interactive、GSSAPIおよび環境変数送信は現行機能に含まれない。Tool ResultとEvidenceは安全なOutcomeとSession Metadataだけで、生Password、Host Key、Banner、暗号交渉情報、生Error、解決IPまたは受信Dataを含めない。
 
 HTTP HeaderとJSON／Formの値は`literal`または`credential_ref`を明示し、CookieはCredential参照だけから生成する。CredentialはExecutorが実行直前に解決する。Header、Cookie、Body、JSON深度・LeafおよびCredential数・値SizeはD-00019の固定上限で検証する。Routing／Forwarding／Proxy Header、秘密Headerのliteral、Scope不一致、Credential参照を含むPath／Query、GET／HEAD Body、Binary／Multipart／Streaming、Redirect追跡および環境Proxy利用を拒否する。Dashboardは共有SnapshotからCredential Metadataだけを読み取り専用表示し、生値、コピー、編集、追加、削除またはRequest実行機能を持たない。
 
