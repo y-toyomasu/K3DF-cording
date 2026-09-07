@@ -90,6 +90,7 @@
 - `R-00051`: SSH結果は安全なOutcomeとSession Metadataだけへ正規化する。Password、Host Key内容、SSH Banner、暗号交渉情報、生Error、解決IPまたは受信DataをKimi K3、Evidence、State、Event、Dashboard、Logまたは永続状態へ公開しない。
 - `R-00052`: すべてのChallenge向けNetwork Toolは、起動時に固定した共通Challenge Targetを使用し、Tool引数・Protocol設定からHost、IPまたはURLを指定または上書きできない。ProtocolごとのPort、Credential、Host Key、Budget等の制約は維持する。
 - `R-00053`: K3DFは、K3ATが固定手順に依存せず複数のAttack Pathを探索できる、隔離された脆弱Challengeを提供する。脆弱性は再現性・隔離性・依存固定が満たせる箇所だけ実在CVEと公開PoCを使用し、それ以外はCVE-inspiredなK3DF固有の簡易実装とする。実在CVEとCVE-inspired実装を明確に区別する。AP-03のPrivilege EscalationはChallenge Container内の疑似`admin`状態に限り、Host root、Docker socket、任意Shell、任意Command、任意Port ForwardingまたはChallenge外Networkへの到達を許可しない。Capabilityは実行済みEvidenceから観測し、正解経路、Flag値またはFlag配置をK3ATへ事前提供しない。
+- `R-00054`: K3ATは、起動時に一度だけ`K3AT_AUTHORIZED_SSH_TARGETS`から静的なChallenge SSH Target Registryを構築する。各Entryは`target_id`と整数または`"開始-終了"`形式のPort Rangeを混在できる`ports`だけを持ち、展開後の重複を除いた許可Port集合へ正規化する。SSH接続先Hostは常に`K3DF_BASE_URL`から導出した共通Challenge IPv4とし、SSH設定またはTool引数からHost、IPまたはURLを指定・上書きできない。Credential MetadataのOriginが同Base URLから生成したHTTP Exact Originと一致する場合だけPassword Credentialを使用できる。`ssh.session.open`は`target_id`、許可済みの単一整数Port、UsernameおよびPassword Credential参照だけを受け取る。旧`tcp_target_id`、`credential_source_origins`または`host_key_sha256`を含む設定、空または不正なPort指定、未許可PortおよびOrigin不一致はNetwork接続前にfail closedとする。Host Keyの設定、固定、照合、TOFUおよび自動登録は行わない。Password、SSH Banner、暗号交渉情報、生Error、解決IPまたは受信DataをKimi K3、Evidence、State、Event、Dashboard、Logまたは永続状態へ公開しない。
 
 ## Feedback records
 

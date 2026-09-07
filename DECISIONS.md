@@ -660,6 +660,7 @@ T-00038〜T-00040で、起動時に固定されるTCP Target Registry、`tcp.sca
 ## D-00023: Pinned-host-key Challenge SSH sessions
 
 - Status: Accepted
+- Superseded By: `D-00026` (2026-09-08)
 - Date: 2026-09-01
 - Source: `R-00016`, `R-00020`〜`R-00023`, `R-00026`〜`R-00029`, `R-00036`〜`R-00040`, `R-00042`, `R-00048`〜`R-00051`, `F-00012`, `D-00016`, `D-00019`, `D-00022`
 
@@ -704,6 +705,7 @@ K3ATに静的SSH Target Registry、Host Key Policy、Credential Scope、Memory�
 ## D-00024: Common Challenge Target
 
 - Status: `Accepted`
+- Fixed Host Key portion: Superseded by `D-00026` (2026-09-08). Other Common Challenge Target boundaries remain in effect.
 - Date: `2026-09-06`
 - Source: `R-00045`〜`R-00052`、Product Owner承認済みDesign
 
@@ -746,3 +748,34 @@ Tool引数およびProtocol設定からHost、IPまたはURLを指定・上書�
 - 実在CVEの隔離再現とCVE-inspired実装を明確に区別する。
 - Capabilityは実行済みEvidenceから観測し、正解経路、Flag値およびFlag配置をK3ATへ事前提供しない。
 - AP-01〜AP-03の実装、公開PoC固定検証、Session ActionおよびArchitecture Verificationは後続の独立Taskで扱う。
+
+## D-00026: Simplified Common-target SSH Registry
+
+- Status: `Accepted`
+- Date: `2026-09-08`
+- Source: `R-00048`〜`R-00052`, `R-00054`, `D-00023`, `D-00024`, Product Owner承認済みDesign
+
+### Context
+
+共通Challenge Target設計の後も、従来のSSH RegistryはTCP Target参照、個別Credential OriginおよびHost Key fingerprintを重複して保持している。SSH接続先を共通Challenge IPv4へ固定した構成では、この重複を取り除き、TCPと同じPort指定の正規化方式へ合わせる必要がある。
+
+### Decision
+
+- `K3AT_AUTHORIZED_SSH_TARGETS`は起動時に一度だけ読むJSON配列とする。各Entryは`target_id`と`ports`だけを持つ。`ports`は整数および`"開始-終了"`形式のRangeを混在でき、起動時に展開して重複のない許可Port集合へ正規化する。
+- SSH接続先Hostは常に`K3DF_BASE_URL`から導出した共通Challenge IPv4とする。SSH設定、TCP設定およびTool引数からHost、IPまたはURLを指定・上書きできない。TCP Registryへの参照は持たない。
+- 旧`tcp_target_id`、`credential_source_origins`または`host_key_sha256`を含む設定は互換変換せず、起動時にfail closedとする。空配列、Range逆転、範囲外、重複または不正型も接続前に拒否する。
+- Credential OriginはCredential MetadataのOriginが`K3DF_BASE_URL`から生成したHTTP Exact Originと一致する場合だけ有効とする。
+- Host Keyの設定、固定、照合、TOFUおよび自動登録は行わない。固定された共通Challenge IPv4、許可Port、private Challenge環境、Credential Origin、Action／SSH試行BudgetおよびSession制約を接続境界とする。
+- `ssh.session.open`は`target_id`、許可Port集合から選ぶ単一の整数`port`、UsernameおよびPassword Credential参照だけを受け取る。Port Range文字列はTool引数として受け取らない。
+- Password、SSH Banner、暗号交渉情報、生Error、解決IPおよび受信Dataは、Kimi K3、Evidence、State、Event、Dashboard、Logまたは永続状態へ公開しない。
+- `D-00023`は本DecisionによりSupersededとする。`D-00024`の固定Host Keyに関する部分も本Decisionにより置換する。既存の共通Challenge Target、Budget、Sessionおよび禁止操作の境界は維持する。
+
+### Consequences
+
+- K3ATのSSH Registry、Session予約、SSH Adapter、Tool Schema、README、`.env.example`およびUnit／Synthetic統合Testを新書式へ更新する。
+- Host Key mismatch専用の処理、TestおよびEvidenceは削除し、Host Key値を設定、状態または出力へ残さない。
+- `ARCHITECTURE.md`は実装・検証後に確認済み構成だけを更新する。事前のArchitecture変更は行わない。
+
+### Verification
+
+T-00056で、Port Range正規化、共通Target Context、Credential Origin、接続前fail-closed、既存SSH制約および秘密非露出を検証する。
