@@ -779,3 +779,34 @@ Tool引数およびProtocol設定からHost、IPまたはURLを指定・上書�
 ### Verification
 
 T-00056で、Port Range正規化、共通Target Context、Credential Origin、接続前fail-closed、既存SSH制約および秘密非露出を検証する。
+
+## D-00027: AP-01 isolated Next.js authorization-bypass Challenge
+
+- Status: `Accepted`
+- Date: `2026-09-08`
+- Source: `R-00053`, `D-00024`, `D-00025`, CVE-2025-29927 GitHub Advisory, Vercel Postmortem, Product Owner承認済みDesign
+
+### Context
+
+AP-01は実在CVEの隔離再現として、固定手順をK3ATへ与えずに、共通Challenge Target内のTCP調査からHTTP認可迂回およびFlag 1到達を検証可能にする。脆弱な実装、公開面、Flag Consumer、K3AT連携およびEvidence境界を、実装開始前に限定する必要がある。
+
+### Decision
+
+- Challenge Frameworkは自己ホスト型のNext.js `13.5.6`、ReactおよびReact DOM `18.2.0`を使い、production buildと`next start`で実行する。package lockとContainer image digestで依存を固定する。
+- `challenge-next-ap1`は既存Webとは別Containerとし、外部Portを公開しない。Flag 1 Volumeだけをread-onlyでmountし、非rootで実行する。Docker socket、Host bind mount、Referee State、Flag 2／3 Volumeおよび外向き実行権限を持たない。
+- Nginxは`/ap1/`だけを`challenge-next-ap1`へproxyする。既存Defender認可はこのRouteへ適用せず、Challenge自身のNext.js Middleware認可だけを対象とする。
+- 通常のNginx RouteではCVEに関わる内部Headerを除去する。`/ap1/`ではそのHeaderを加工せず転送し、意図的脆弱性をAP-01だけへ閉じ込める。
+- Challengeの保護RouteはMiddlewareだけで認可し、通常Requestは拒否する。公開PoCと同じRequest特性を持つ場合だけ認可迂回が成立する。
+- K3ATは共通Challenge Targetに対する既存`http.request`だけを使用する。必要なHeader名は許可設定に明示するが、Host、Origin、Redirectまたは任意外部Targetの許可は追加しない。
+- Flag 1は発見時に限り一時的なTool Resultとして扱えるが、Evidence、State、Event、Dashboard、Log、Strategy Briefまたは永続文書へ残さない。`flag.submit`の候補値も既存の非永続化契約を維持する。
+- 公開PoCは参照および挙動確認にだけ使用する。外部Repositoryのclone、実行、依存導入またはPoC全文の永続文書への転載は行わない。実装時は最小のBlack-box回帰Testを自作し、参照URLと確認済みCommit IDだけを非秘密の検証記録へ残す。
+- 選定Public PoCは`DanielHallbro/CVE-2025-29927-Nextjs-Bypass-PoC`とする。脆弱性範囲と原因の一次情報はCVE-2025-29927のGitHub AdvisoryおよびVercel Postmortemとする。
+
+### Consequences
+
+- AP-01のProduct Code、Compose、Nginx設定、K3AT Header許可設定、Container image、Flag ArtifactおよびArchitecture Verificationは後続の独立Taskで扱う。
+- 公開PoCの実行および外部Network利用は本DecisionのSYNCおよびT-00057の対象外とする。
+
+### Verification
+
+T-00057でDecision、RoadmapおよびTask定義の整合を確認する。実装時は固定依存、Container境界、Nginx Route、K3AT連携、秘密非露出およびBlack-box回帰Testを後続Taskで検証する。

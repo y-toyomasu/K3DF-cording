@@ -122,7 +122,7 @@ horizon="next"
 display_order=10
 name="Next.js Authentication Bypass Challenge"
 purpose="実在CVEと固定した公開PoCにより、TCP ScanからHTTP認可迂回、Flag 1到達までを隔離再現する"
-task_ids=[]
+task_ids=["T-00057"]
 references=["R-00053", "D-00025", "https://nextjs.org/blog/cve-2025-29927"]
 [[workstreams.items]]
 id="credential-to-ssh"
