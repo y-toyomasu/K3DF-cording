@@ -798,7 +798,7 @@ AP-01は実在CVEの隔離再現として、固定手順をK3ATへ与えずに�
 - `/ap1/`以外の外部RequestではNginxが`x-middleware-subrequest`を明示的に除去する。`/ap1/`ではCVE再現のため当該Headerを加工せず`challenge-next-ap1`へ転送し、意図的脆弱性をAP-01だけへ閉じ込める。
 - Challengeの保護RouteはMiddlewareだけで認可し、通常Requestは拒否する。公開PoCと同じRequest特性を持つ場合だけ認可迂回が成立する。
 - K3ATは共通Challenge Targetに対する既存`http.request`だけを使用する。AP-01実装時に`x-middleware-subrequest`をHeader Allowlistへ明示追加するが、Host、Origin、Redirectまたは任意外部Targetの許可は追加しない。
-- Flag 1は発見時に限り一時的なTool Resultとして扱えるが、Evidence、State、Event、Dashboard、Log、Strategy Briefまたは永続文書へ残さない。`flag.submit`の候補値も既存の非永続化契約を維持する。
+- K3ATが許可済みToolで発見したFlag値の取扱いは`D-00028`に従う。K3DFおよびReferee側のFlag Artifact、Provisioning、read-only Volume、原本非露出および提出検証の保護要件は変更しない。
 - CVE-2025-29927の脆弱性範囲、修正版および回避策の唯一の判定基準は公式GitHub Advisory `GHSA-f82v-jwr5-mffw`とする。`DanielHallbro/CVE-2025-29927-Nextjs-Bypass-PoC`は挙動確認の参考資料に留め、公式根拠、依存または実装成果物として扱わない。
 - 後続実装Taskは当該Public PoCの参照Commitを固定して内容を読取り確認する。外部Repositoryのclone、実行、vendor、依存導入またはPoC全文の転載は行わない。実装時は最小のBlack-box回帰Testを自作し、参照URLと確認済みCommit IDだけを非秘密の検証記録へ残す。
 
@@ -809,4 +809,30 @@ AP-01は実在CVEの隔離再現として、固定手順をK3ATへ与えずに�
 
 ### Verification
 
-T-00057でDecision、RoadmapおよびTask定義の整合を確認する。実装時は固定依存、Container境界、Nginx Route、K3AT連携、秘密非露出およびBlack-box回帰Testを後続Taskで検証する。
+T-00057でDecision、RoadmapおよびTask定義の整合を確認する。実装時は固定依存、Container境界、Nginx Route、K3AT連携、`D-00028`に従うFlag取扱い、Flag以外の秘密非露出およびBlack-box回帰Testを後続Taskで検証する。
+
+## D-00028: K3AT-discovered Flag handling
+
+- Status: `Accepted`
+- Date: `2026-09-09`
+- Source: `D-00025`, `D-00027`, Product Owner承認済みDesign
+
+### Context
+
+K3ATが許可済みToolで実際に発見したFlag値は、探索結果および提出候補として運用上利用できる必要がある。一方、K3DFおよびRefereeが保持するFlag Artifactの原本保護と、K3ATへの事前情報投入または直接読取を禁止する境界は維持する。
+
+### Decision
+
+- K3ATが許可済みToolで発見したFlag値は、K3AT側では秘匿情報として扱わない。
+- 発見済みFlag値は、Kimi K3への送信、Tool Result、`flag.submit`候補、Evidence、State、Event、Dashboard、Log、Strategy Briefおよび人間向け出力に含めてよい。発見済みFlag値の検出、Redact、拒否、Run終了時の自動破棄または永続化禁止は要求しない。
+- この許容は許可済みToolで実際に発見した値だけに適用する。Flag値、配置または正解経路をK3ATへ事前投入すること、K3ATへFlag ArtifactまたはReferee原本の直接読取権限を与えることは引き続き禁止する。
+- K3DFおよびReferee側のFlag Artifact、Provisioning、read-only Volume、原本非露出および提出検証の保護要件は変更しない。
+
+### Consequences
+
+- K3AT実装、Evidence、State、Event、Dashboard、Log、Strategy BriefおよびArchitecture Verificationの変更は後続の独立Taskで扱う。
+- `D-00027`のAP-01におけるK3AT側Flag取扱いは本Decisionを参照する。
+
+### Verification
+
+T-00058でDecision、D-00027整合およびRoadmap関連付けを確認する。K3AT側の実装・検証は後続Taskで扱う。
