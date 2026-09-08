@@ -130,8 +130,8 @@ horizon="next"
 display_order=20
 name="CVE-inspired Credential to SSH Path"
 purpose="CVE-inspired SQLi、Credential Store、Challenge SSH Loginを連鎖させる"
-task_ids=[]
-references=["R-00053", "D-00025", "D-00019", "D-00023"]
+task_ids=["T-00060"]
+references=["R-00053", "R-00056", "D-00025", "D-00019", "D-00023", "D-00026", "D-00030"]
 [[workstreams.items]]
 id="session-scoped-internal-access"
 horizon="later"

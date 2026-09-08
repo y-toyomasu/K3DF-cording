@@ -867,3 +867,30 @@ AP-03は、接続済みSSH Sessionを起点としてChallenge内部の限定さ�
 ### Verification
 
 T-00059でRequirement、DecisionおよびProduct Roadmapの整合を確認する。実装後に限り、Session／Budget／Output境界、Docker network Allowlist、内部到達範囲、秘密RedactionおよびArchitectureを検証・記録する。
+
+## D-00030: AP-02 CVE-inspired credential-to-SSH path
+
+- Status: `Accepted`
+- Date: `2026-09-09`
+- Source: `R-00042`, `R-00049`, `R-00053`, `R-00054`, `R-00056`, `D-00019`, `D-00023`, `D-00025`, `D-00026`, `D-00028`, Product Owner承認済みDesign
+
+### Context
+
+AP-02は、既存Web Challengeの意図的SQLiで発見した限定Credentialを、Run-scoped Credential Storeを通じてChallenge SSH Loginへ利用する経路である。実在CVEの再現、新規Web Container、Flag配置またはAP-03の内部操作を導入せず、Credential受渡しとSSH Session取得を最小範囲で定義する。
+
+### Decision
+
+- 既存`web`の`/customer?id=...`をSQLi入口として再利用し、新Web Containerを作成しない。SQLi Challenge用DB Recordは、Challenge SSHの限定UsernameおよびPasswordを発見するための最小Fieldだけを持つ。Flag、Referee情報、Docker設定、Host情報、管理用Credentialまたは実環境情報をDBに保存しない。
+- 人間が実行する運用ProvisioningがCredentialを生成または再生成し、WebのChallenge DB初期化とSSH Challengeアカウント初期化の順に限定して渡す。Credential ArtifactはGit、Compose定義、imageまたは固定`.env`値へ保存せず、通常実行中のWeb／SSH Challengeユーザーが直接読めない境界を維持する。
+- SSH Challengeは別Containerとして非rootで実行し、`2222/tcp`だけを共通Challenge Targetに対応する許可Networkへ提供する。root login、sudo、Docker socket、Host mount、特権Capability、管理networkおよび外部Outboundを持たない。
+- K3ATはHTTP Tool Resultで発見したCredentialをRun-scoped Credential Storeへ登録し、既存`ssh.session.open` Contractで`target_id="challenge"`と許可済みPort `2222`だけを使って接続する。Capability遷移はCredential発見から有効な`SESSION-*`取得までとする。
+- AP-02にはFlagを配置または提出しない。`D-00028`のK3AT側Flag取扱いと矛盾しない。AP-03の内部network、任意Command、疑似`admin`、Internal Asset、CollectionおよびExfiltrationをAP-02へ先行導入しない。
+- 実装前のため、`ARCHITECTURE.md`を現行構成として更新しない。
+
+### Consequences
+
+- K3DF Web／DB、Credential Provisioning、SSH Challenge Container、K3AT Credential／SSH統合、Synthetic TestおよびArchitecture Verificationは後続の独立Taskで実装・検証する。
+
+### Verification
+
+T-00060でRequirement、DecisionおよびProduct Roadmapの整合を確認する。実装後に限りSQLi露出範囲、Credential Artifact境界、Session取得、SSH最小権限およびArchitectureを検証・記録する。
