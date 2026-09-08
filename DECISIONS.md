@@ -784,7 +784,7 @@ T-00056で、Port Range正規化、共通Target Context、Credential Origin、�
 
 - Status: `Accepted`
 - Date: `2026-09-08`
-- Source: `R-00053`, `D-00024`, `D-00025`, CVE-2025-29927 GitHub Advisory, Vercel Postmortem, Product Owner承認済みDesign
+- Source: `R-00053`, `D-00024`, `D-00025`, GitHub Advisory `GHSA-f82v-jwr5-mffw`, Product Owner承認済みDesign
 
 ### Context
 
@@ -792,15 +792,15 @@ AP-01は実在CVEの隔離再現として、固定手順をK3ATへ与えずに�
 
 ### Decision
 
-- Challenge Frameworkは自己ホスト型のNext.js `13.5.6`、ReactおよびReact DOM `18.2.0`を使い、production buildと`next start`で実行する。package lockとContainer image digestで依存を固定する。
+- Challenge Frameworkは自己ホスト型のNext.jsをproduction buildと`next start`で実行する。後続実装Taskは公式GitHub Advisory `GHSA-f82v-jwr5-mffw`の影響範囲内で依存を選定し、package lockとベースイメージのdigestを確定してからBuildする。
 - `challenge-next-ap1`は既存Webとは別Containerとし、外部Portを公開しない。Flag 1 Volumeだけをread-onlyでmountし、非rootで実行する。Docker socket、Host bind mount、Referee State、Flag 2／3 Volumeおよび外向き実行権限を持たない。
 - Nginxは`/ap1/`だけを`challenge-next-ap1`へproxyする。既存Defender認可はこのRouteへ適用せず、Challenge自身のNext.js Middleware認可だけを対象とする。
-- 通常のNginx RouteではCVEに関わる内部Headerを除去する。`/ap1/`ではそのHeaderを加工せず転送し、意図的脆弱性をAP-01だけへ閉じ込める。
+- `/ap1/`以外の外部RequestではNginxが`x-middleware-subrequest`を明示的に除去する。`/ap1/`ではCVE再現のため当該Headerを加工せず`challenge-next-ap1`へ転送し、意図的脆弱性をAP-01だけへ閉じ込める。
 - Challengeの保護RouteはMiddlewareだけで認可し、通常Requestは拒否する。公開PoCと同じRequest特性を持つ場合だけ認可迂回が成立する。
-- K3ATは共通Challenge Targetに対する既存`http.request`だけを使用する。必要なHeader名は許可設定に明示するが、Host、Origin、Redirectまたは任意外部Targetの許可は追加しない。
+- K3ATは共通Challenge Targetに対する既存`http.request`だけを使用する。AP-01実装時に`x-middleware-subrequest`をHeader Allowlistへ明示追加するが、Host、Origin、Redirectまたは任意外部Targetの許可は追加しない。
 - Flag 1は発見時に限り一時的なTool Resultとして扱えるが、Evidence、State、Event、Dashboard、Log、Strategy Briefまたは永続文書へ残さない。`flag.submit`の候補値も既存の非永続化契約を維持する。
-- 公開PoCは参照および挙動確認にだけ使用する。外部Repositoryのclone、実行、依存導入またはPoC全文の永続文書への転載は行わない。実装時は最小のBlack-box回帰Testを自作し、参照URLと確認済みCommit IDだけを非秘密の検証記録へ残す。
-- 選定Public PoCは`DanielHallbro/CVE-2025-29927-Nextjs-Bypass-PoC`とする。脆弱性範囲と原因の一次情報はCVE-2025-29927のGitHub AdvisoryおよびVercel Postmortemとする。
+- CVE-2025-29927の脆弱性範囲、修正版および回避策の唯一の判定基準は公式GitHub Advisory `GHSA-f82v-jwr5-mffw`とする。`DanielHallbro/CVE-2025-29927-Nextjs-Bypass-PoC`は挙動確認の参考資料に留め、公式根拠、依存または実装成果物として扱わない。
+- 後続実装Taskは当該Public PoCの参照Commitを固定して内容を読取り確認する。外部Repositoryのclone、実行、vendor、依存導入またはPoC全文の転載は行わない。実装時は最小のBlack-box回帰Testを自作し、参照URLと確認済みCommit IDだけを非秘密の検証記録へ残す。
 
 ### Consequences
 
