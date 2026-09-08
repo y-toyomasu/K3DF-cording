@@ -138,5 +138,5 @@ horizon="later"
 display_order=30
 name="Session-scoped Internal Access Path"
 purpose="疑似admin状態、内部Asset、Collection、固定Exfiltrationを、任意Shellや任意Forwardingなしで実現する"
-task_ids=[]
+task_ids=["T-00059"]
 references=["R-00053", "D-00025", "D-00016"]

@@ -836,3 +836,34 @@ K3ATが許可済みToolで実際に発見したFlag値は、探索結果およ�
 ### Verification
 
 T-00058でDecision、D-00027整合およびRoadmap関連付けを確認する。K3AT側の実装・検証は後続Taskで扱う。
+
+## D-00029: AP-03 session-scoped SSH internal access
+
+- Status: `Accepted`
+- Date: `2026-09-09`
+- Source: `R-00049`〜`R-00055`, `D-00025`〜`D-00028`, Product Owner承認済みDesign
+
+### Context
+
+AP-03は、接続済みSSH Sessionを起点としてChallenge内部の限定されたラテラルムーブ、疑似`admin`状態、Internal Assetおよび固定Exfiltrationを表現する。任意の接続先、対話操作、転送またはHost権限昇格を許可せず、Sessionに束縛した非対話実行とDocker内部networkのAllowlistで範囲を限定する。
+
+### Decision
+
+- `ssh.session.exec`は有効かつ接続済みの`SESSION-*`とCommandだけを受け取る。Host、Port、Credential、Forwarding設定または別Sessionを受け取らない。Session有効性、Action BudgetおよびExec BudgetはNetworkまたはChannel作成前に確認・消費する。
+- Commandは最大4 KiB、1 invocationは最大30秒、stdoutとstderr合計は最大1 MiBとする。Exit Code、`timed_out`および`output_truncated`を機械可読に返し、TimeoutまたはOutput上限時には取得済み部分だけを返す。
+- 非対話Exec Channelだけを許可する。PTY、対話入力、SCP、SFTP、Port Forwarding、Agent Forwarding、X11 Forwarding、環境変数送信および再接続は許可しない。
+- Tool Result、Evidence、State、Event、DashboardおよびLogには、Session ID、Commandの安全な正規化結果、Exit Code、timeout／truncation状態および取得済みOutputだけを記録できる。`D-00028`に従い許可済みToolで発見したFlag値はK3AT側で非秘匿として扱う。Password、Credential、Token、認証情報、実行秘密およびそれらを含む出力はSystem側がRedactする。
+- Docker構成は`ap3-ingress`、`ap3-asset`および`ap3-exfil`を含む内部networkを使用する。各networkは`internal`として隔離し、SSH Challengeは必要なnetworkだけへ接続する。Docker networkの追加・変更、任意の外部宛先または未定義Serviceへの到達を許可しない。
+- SSH Challengeは`NET_ADMIN`を持たず、IP forwardingを行わず、Docker socket、Host mount、管理networkまたは外部egressを持たない。Outbound通信はDocker構成のホワイトリストにより、AP-03で明示したInternal AssetおよびExfil ReceiverのService／Portだけに限定する。Internet、Docker host、管理系、未定義Challenge、未定義networkおよびDNSを許可しない。
+- Internal Assetは限定されたChallenge内部情報を提供し、Exfil Receiverは固定されたAP-03の到達先だけを受け取る。両Serviceは外部Portを公開しない。AP-03の疑似`admin`はChallenge Container内の状態に限り、Host権限昇格ではない。
+- `R-00050`のShell／PTY禁止および`R-00051`の安全なOutcome／Session Metadata限定は、`R-00055`が定義するSession限定非対話ExecとOutput Contractに置換する。Session lifecycle、転送系の禁止、Credential等のRedactionおよび`R-00053`のHost境界は維持する。
+- 実装前のため、`ARCHITECTURE.md`を現行構成として更新しない。
+
+### Consequences
+
+- AP-03のK3AT Tool、SSH Adapter、Budget、Evidence／State／Dashboard、K3DF Container、Compose、networkおよびSynthetic統合Testは後続の独立Taskで実装・検証する。
+- AP-02のSSH Challenge構成を確定する後続実装Taskが作成された場合、その`DONE`をAP-03実装TaskのDependencyとして分離して記録する。本Decisionおよび文書設計は待たない。
+
+### Verification
+
+T-00059でRequirement、DecisionおよびProduct Roadmapの整合を確認する。実装後に限り、Session／Budget／Output境界、Docker network Allowlist、内部到達範囲、秘密RedactionおよびArchitectureを検証・記録する。
