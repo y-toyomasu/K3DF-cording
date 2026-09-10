@@ -3,7 +3,7 @@
 - Status: <`DESIGN` | `READY` | `CLAIMED` | `IMPLEMENTING` | `GUI_REVIEW` | `ACCEPTANCE_REVIEW` | `DONE` | `BLOCKED`>
 - Priority: <Critical | High | Medium | Low>
 - Dependencies: <none | task / decision / external dependency>
-- Source: <`R-xxxxx`、`A-xxxxx`、`D-xxxxx`、`F-xxxxx` のいずれかと、その参照先を最低1件記録する。関連Taskの `T-xxxxx` は追加参照として記録できるが、`T-xxxxx` 単独ではSourceにできない>
+- Source: <`R-xxxxx`、`A-xxxxx`、`D-xxxxx`、`F-xxxxx` のいずれかと、その参照先を最低1件記録する。`AGENTS.md`変更TaskだけはDesign Agentが提示した変更理由・内容・影響およびProduct Owner明示承認をSourceとして記録できる。関連Taskの `T-xxxxx` は追加参照として記録できるが、`T-xxxxx` 単独ではSourceにできない>
 - Recommended Codex Model: <model name>
 - Recommended Reasoning Effort: <low | medium | high | xhigh | max>
 - Planned Active Time: <`≤30 minutes` | `>30 minutes — exception approved`>
@@ -63,6 +63,22 @@
 - Unavailable Reason: <値がnullの同名Metricだけに対応する理由。実測値と併記しない>
 
 > 将来作成されるEngineering Agent対象の実開発Taskだけに適用する。Task本文、Prompt、Command／Error本文、Host固有絶対Path、Secret、Credential、Token、Flag、認証情報、実行秘密および非公開思考は記録しない。記録だけでEvaluator実行、Benchmark比較、Model／Agent設定変更、推薦または外部送信を行わない。
+
+## Required Reading
+
+- Governance: `AGENTS.md`
+- Requirement: active R-xxxxx | none
+- Decision: active D-xxxxx | none
+- Architecture Reference: A-xxxxx section | none
+- Dependency Handoff: Task / Interface / Findings | none
+- Roadmap: update target path/item | outside task scope
+- Repository Baseline: relevant repository-relative paths
+
+## Architecture Impact
+
+- Classification: none | decision only | required after acceptance
+- Target Section: A-xxxxx | none
+- Update Timing: none | after Product Owner acceptance, immediately before DONE
 
 ## Intent
 
