@@ -140,3 +140,39 @@ name="Session-scoped Internal Access Path"
 purpose="疑似admin状態、内部Asset、Collection、固定Exfiltrationを、任意Shellや任意Forwardingなしで実現する"
 task_ids=["T-00059"]
 references=["R-00053", "D-00025", "D-00016"]
+
+[[workstreams]]
+id="attacker-observability"
+name="Attacker Observability"
+[[workstreams.items]]
+id="observed-attack-path-contract"
+horizon="next"
+display_order=10
+name="Observed Attack Path Contract"
+purpose="Evidenceに基づく階層Graph、Credential表示およびLibrary Decisionを確立する"
+task_ids=["T-00061"]
+references=["R-00057", "D-00031"]
+[[workstreams.items]]
+id="observed-attack-path-runtime-projection"
+horizon="next"
+display_order=20
+name="Observed Attack Path Runtime Projection"
+purpose="Agent StateとEvidenceからSystem側でGraphを導出し、Run Snapshotへ保存する"
+task_ids=[]
+references=["R-00057", "D-00031"]
+[[workstreams.items]]
+id="observed-attack-path-dashboard"
+horizon="next"
+display_order=30
+name="Observed Attack Path Dashboard"
+purpose="Dashboard上段のCompound Graph、詳細Panel、Filter、左右切替、Pan、ZoomおよびFitを提供する"
+task_ids=[]
+references=["R-00057", "D-00031"]
+[[workstreams.items]]
+id="observed-attack-path-cross-run-review"
+horizon="later"
+display_order=40
+name="Observed Attack Path Cross-run Review"
+purpose="完了Runの選択および将来の比較表示を提供する"
+task_ids=[]
+references=["R-00057", "D-00031"]

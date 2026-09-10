@@ -488,7 +488,7 @@ Ground Truthを攻撃側およびDefenderから分離し、少数のFlagを安�
 
 ### Decision
 
-K3ATへRun-scoped Credential Storeを追加し、HTTP ResponseからSystem側が抽出したCredentialをMemory上だけで保持する。Kimiには生値ではなくCredential IDと安全なMetadataだけを提示し、HTTP Executorは実行直前にCredential IDを解決してHeader、CookieまたはBodyへ挿入する。生値はProcess終了時に失われ、暗号化永続Storeおよび再起動後の復元は対象外とする。Snapshot、Event、Evidence、DashboardにはMetadataだけを保存し、復元不能な過去Metadataを利用可能Credentialとして扱わない。
+K3ATへRun-scoped Credential Storeを追加し、HTTP ResponseからSystem側が抽出したCredentialをMemory上だけで保持する。Kimiには生値ではなくCredential IDと安全なMetadataだけを提示し、HTTP Executorは実行直前にCredential IDを解決してHeader、CookieまたはBodyへ挿入する。生値はProcess終了時に失われ、暗号化永続Storeおよび再起動後の復元は対象外とする。Snapshot、Event、EvidenceおよびDashboardにはMetadataだけを保存し、復元不能な過去Metadataを利用可能Credentialとして扱わない。ただし、Dashboard用Run RecordにおけるObserved Attack PathおよびCredential詳細表示は`D-00031`によりこのDashboard非公開部分を置換する。Kimi非公開、通常Tool引数のCredential ID利用およびGit非記録の境界は維持する。
 
 Credential IDは`CRED-<UUID>`とし、`cookie`、`bearer_token`、`api_key`、`password`、`form_token`、`opaque_secret`を扱う。MetadataはID、種類、安全なLabel、Source Evidence ID、Exact Origin、CookieのName／Domain／Path／Secure／HttpOnly／SameSite／Expiry、取得時刻、最終使用時刻、利用可能・期限切れ・Run終了済み状態を持つ。生値、復元可能なHash、Authorization HeaderまたはCookie Header全体を含めない。
 
@@ -504,9 +504,9 @@ Bodyは`json`、`form`、`text`を対象とし、JSON／Formの各値は`literal
 
 固定上限はHeader数32、Header名64文字、Header値1,024文字、Header合計8 KiB、Cookie参照32、Body 16 KiB、JSON深度8、JSON／Form Leaf 128、Credential 128／Run、Credential値4 KiBとする。上限超過では暗黙Evictionせず、登録またはRequestをfail closedとする。
 
-HTTP EvidenceにはMethod、Path、Header名、Body種別・Size・Field名、使用Credential IDと適用箇所、HTTP Status、Content-Type、Redact済みBody Preview、新規Credential ID、種類、安全なScopeだけを記録できる。Header秘密値、Cookie値、Authorization値、Body内Credential値、Token、Password、API Key、復元可能情報は記録しない。Blocked EvidenceとExceptionにも同じRedactionを適用する。
+HTTP EvidenceにはMethod、Path、Header名、Body種別・Size・Field名、使用Credential IDと適用箇所、HTTP Status、Content-Type、Redact済みBody Preview、新規Credential ID、種類、安全なScopeだけを記録できる。Header秘密値、Cookie値、Authorization値、Body内Credential値、Token、Password、API Key、復元可能情報は記録しない。Blocked EvidenceとExceptionにも同じRedactionを適用する。`D-00031`のDashboard用Run Recordは、Evidenceを入力にSystem側で導出する観測GraphとCredential詳細表示の限定例外であり、HTTP Evidence自体の記録規則は変更しない。
 
-K3AT Dashboardには、Credential ID、種類、安全なScope、Source Evidence ID、状態、取得時刻、最終使用時刻だけを読む専用一覧として表示する。生値、コピー、編集、追加、削除、Request実行、Cookie HeaderまたはAuthorization Headerの表示を提供しない。
+K3AT Dashboardの通常Credential一覧には、Credential ID、種類、安全なScope、Source Evidence ID、状態、取得時刻、最終使用時刻だけを読む専用一覧として表示する。通常一覧では生値、コピー、編集、追加、削除、Request実行、Cookie HeaderまたはAuthorization Headerの表示を提供しない。`D-00031`のDashboard用Run RecordにおけるObserved Attack Path詳細は、この通常一覧の生値非表示部分に対する限定例外とする。
 
 ### Rationale
 
@@ -527,7 +527,7 @@ Tool Registry、HTTP Executorおよび永続化前のTool Resultに秘密値解�
 
 ### Verification
 
-`T-00017`でRun-scoped Credential Store、`Set-Cookie`／既知JSON Field／既知HTML hidden inputの抽出、重複・上限処理、Metadata、Exact Origin／Cookie Scope、Secret非永続化、Header／Cookie Policy、JSON／Form／Text Body、Credential参照、Response／Blocked／Executor Error Redaction、Evidence、Planner入力、Dashboardおよび既存Method＋Path互換性を実装した。K3AT Agent 77件とDashboard 3件の自動Test、K3AT／Dashboard image Build、Desktop 1280pxおよび狭幅390pxのGUI確認に合格した。GUIではCredential Metadata 2件、既存Run／Finding／Strategy Brief表示、横Overflowなし、操作要素なしおよび合成生値Marker不在を確認した。外部Target、Kimi API Keyおよび実Credentialは使用していない。
+`T-00017`でRun-scoped Credential Store、`Set-Cookie`／既知JSON Field／既知HTML hidden inputの抽出、重複・上限処理、Metadata、Exact Origin／Cookie Scope、Secret非永続化、Header／Cookie Policy、JSON／Form／Text Body、Credential参照、Response／Blocked／Executor Error Redaction、Evidence、Planner入力、Dashboardおよび既存Method＋Path互換性を実装した。K3AT Agent 77件とDashboard 3件の自動Test、K3AT／Dashboard image Build、Desktop 1280pxおよび狭幅390pxのGUI確認に合格した。GUIではCredential Metadata 2件、既存Run／Finding／Strategy Brief表示、横Overflowなし、操作要素なしおよび合成生値Marker不在を確認した。外部Target、Kimi API Keyおよび実Credentialは使用していない。これらのDashboard検証結果は、後続の`D-00031`によるDashboard用Run Recordの限定例外を検証したものではない。
 `T-00042`〜`T-00045`で、このStoreのavailableな`password` CredentialだけをSSH TargetのExact Originと照合して利用するSession境界を追加した。生PasswordはSession、Tool Result、Evidence、Snapshot、Event、Dashboardまたはlogへ保存しない。
 
 ## D-00020: Single-demo-run CTF Referee with a shared validation seed
@@ -894,3 +894,34 @@ AP-02は、既存Web Challengeの意図的SQLiで発見した限定Credentialを
 ### Verification
 
 T-00060でRequirement、DecisionおよびProduct Roadmapの整合を確認する。実装後に限りSQLi露出範囲、Credential Artifact境界、Session取得、SSH最小権限およびArchitectureを検証・記録する。
+
+## D-00031: K3AT observed attack path visualization
+
+- Status: `Accepted`
+- Date: `2026-09-11`
+- Source: `R-00014`, `R-00018`, `R-00025`, `R-00026`, `R-00041`, `R-00042`, `R-00057`, `D-00001`, `D-00007`, `D-00008`, `D-00011`, `D-00015`, `D-00017`, `D-00019`, Product Owner承認済みDesign
+
+### Context
+
+K3ATの探索実績を、K3DF Capability Graph、Strategy Brief、CTF Ground TruthまたはChallengeの正解経路と混同せず、Evidenceに基づくHost／Service／Resource階層として表示する必要がある。Plannerの提案だけを実績として扱わず、CredentialとSessionが実行済み経路でどのServiceと関係するかを確認可能にする。
+
+### Decision
+
+- Graphの入力は実行済みTool、Policyによる拒否、実行失敗およびSystemがEvidenceから確認した成果だけとする。KimiはNode、Edge、Statusまたは因果関係を確定しない。
+- Graph開始Nodeは論理的なK3AT Host（自ホスト）とし、実Hostname、IP、Host固有Pathまたは管理情報を表示しない。階層はHost → Service → Resource／Credential／Session／Objectiveとする。Credentialは発見元Service、Sessionは接続先Serviceとの関係が分かる位置に置く。
+- Tool ActionはNodeではなくEdgeとし、少なくとも`attempted_from`、`produced`、`used`、`continued_to`を扱う。単なる時系列を因果関係にしない。Statusは`confirmed`、`executed`、`blocked`、`failed`、`incomplete`とする。
+- 既存`attack_path`との互換を維持し、新たに`observed_attack_path`を定義する。正規Dataは座標、選択状態または表示方向を保存しない。Node上限は128、Edge上限は256、各要素のEvidence ID上限は8とし、切捨てはSummaryへ記録する。
+- Dashboard用Run Recordに限り、Credentialは秘匿しない。Username、PasswordおよびCookieは詳細表示で確認・コピー可能とし、TokenはNodeにField名、種類およびLabelを示し、詳細で生値を展開・コピー可能とする。これは`R-00042`および`D-00019`の永続状態・Dashboard非公開部分を置換する。生CredentialをKimiのPlanner入力または通常Tool引数へ渡さず、Credential IDによるTool利用は維持する。Git管理文書、Task、Source Code例、Test結果またはCommitへ実Credential値を記録しない。
+- Dashboardはprivate LAN上で認証なし閲覧可能であり、到達できる利用者がCredentialを閲覧できる運用上の帰結を明記する。
+- Dashboard最上段にObserved Attack Path Mapを置く。表示は横方向だけとし、既定は右から左、自ホストは最右端とする。右から左／左から右を切替可能とし、方向選択はlocalStorageへ保存できる。狭幅でも縦表示へ変換せず、Pan／Scroll、ZoomおよびFitを提供する。
+- Cytoscape.js、ELK.jsおよびcytoscape-elkを採用する。CDNは使わずローカルAssetとして同梱する。実装Taskで互換性確認後にVersion、取得元、Licenseおよびchecksumを固定する。
+- 実装前のため、`ARCHITECTURE.md`を現行構成として更新しない。
+
+### Consequences
+
+- System側のAgent State／EvidenceからのGraph導出、Run Snapshot保存、Dashboard Compound Graph、詳細Panel、Filter、方向切替、Pan／Zoom／FitおよびCross-run Reviewは後続の独立Taskで扱う。
+- K3DF Capability Graph、Strategy Brief、CTF Ground TruthおよびChallengeの正解経路は本Graphに統合しない。
+
+### Verification
+
+T-00061でRequirement、DecisionおよびProduct Roadmapの整合を確認する。実装後に限りData Contract、Credential表示、Library互換性、Dashboard操作、境界およびArchitectureを検証・記録する。
