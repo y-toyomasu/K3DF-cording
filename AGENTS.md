@@ -33,8 +33,6 @@
 - 実装前に、`AGENTS.md`、Task全文、Taskの`Source`、Taskの`Required Reading`、対象RepositoryのTask Branch上の関連Code／Compose／設定／Test／README、および明示されたDependency Handoffを参照する。
 - Roadmapは優先順位と完了表示の参照に限定し、Task実装範囲を拡張する根拠にしない。`ARCHITECTURE.md`は関連コンポーネント・境界の参考情報であり、Task Branch上の現行実装またはTask範囲を上書きしない。
 
-## Lifecycle and Ownership
-
 ## Stories
 
 - Storyは、Product OwnerとDesign Agentが一つの目的、問題または設計テーマについて行う会話と判断を整理する、Taskより上位の会話上の単位である。StoryはGit Branch、RepositoryまたはTask IDを持たず、複数の正本化やTask Leadへの委譲を生み得るが、Taskの実装、検証、受入れまたは進捗を管理しない。
@@ -44,6 +42,8 @@
 - StoryはTask Leadへの指示を発行した時点で`DONE`とする。完結後、StoryでTask ID、SYNC先のRequirement／Decision／Roadmap IDまたはTask実装状況を追跡しない。
 - Design AgentはProduct Ownerの都度承認なしに、Storyの要約、Open Questions、Resume From、Last Updatedおよび`ACTIVE`／`PAUSED`を自律更新できる。おおむね5往復ごと、話題切替、明示承認による重要判断、保留、再開またはTask Lead委譲時に更新する。Confirmed DecisionsにはProduct Owner明示承認だけを記録し、未承認の提案または選択肢はOpen Questionsへ留める。
 - Design AgentのStory実体作成・更新権限は、会話継続性のための`stories/INDEX.md`と`stories/S-*.md`だけに限定する。Product OwnerはStory開始、再開、保留および完結を会話で指示でき、Task LeadとEngineering AgentはStory実体を変更しない。`stories/INDEX.md`の列はStory、Status、Topic、Last Updated、Resume Fromだけとし、関連Task IDまたはRequirement／Decision IDの列を設けない。`stories/TEMPLATE.md`はStory Header、Purpose、Confirmed Decisions、Open Questions、Resume From、HandoffおよびCompletion節を持つ。
+
+## Lifecycle and Ownership
 
 Taskは`tasks/TEMPLATE.md`を基に作成し、次の8 Statusのいずれかを持つ。
 
