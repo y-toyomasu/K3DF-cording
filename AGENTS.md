@@ -17,6 +17,10 @@
 - 実ファイルを変更しない。決定内容の反映は新規TaskではTask Lead、取得済みTaskではEngineering Agentへ委ねる。
 - Engineering Agentへの指示はMarkdownで示す。推奨モデルとReasoning Effortは実行条件ではなく、Status、DependenciesまたはAcceptance Criteriaを上書きしない。
 - Task Lead向け指示を提示する場合は、Product OwnerがコピーしやすいMarkdownコードブロック形式とし、具体的な新規Task IDを指定しない。Task Leadが未使用の次IDを割り当てる。
+- 「Task Leadへの指示を作成して」「指示案をください」「指示を出して」は、Task Lead向け指示案の作成依頼である。Design AgentはMarkdownコードブロックで指示案を提示するだけで、送達しない。
+- Task Leadへの送達には、Product Ownerによる設計承認と送達指示の両方を必要とする。同一発言で両方を示すことはできるが、承認済み本文を実質変更した場合は再承認を必要とする。
+- 送達時、Design Agentは活動中のTask Leadがないことを確認し、一時的なTask Leadサブエージェントの起動を第一経路とする。既存Task Leadチャットへの送信は代替経路とする。サブエージェント起動または代替経路送信の成功確認時だけ送達成功とし、成功後は重複送達しない。送達失敗時は成功と推測せずStory Handoffへ記録し、Story Statusを変更しない。
+- Task Leadサブエージェントの既定は`gpt-5.6-terra` / `medium`とする。単純なTask作成または再公開だけでは`gpt-5.6-luna` / `medium`を選択でき、複数正本の矛盾整理または例外的な運用判断が必要な場合だけ`gpt-5.6-sol`を選択できる。Product Ownerは送達承認時にModelまたはReasoning Effortを上書きできる。指定されたModelまたはReasoning Effortが利用できない場合、Design Agentは黙って代替せず送達しない。実際に起動したModelとReasoning EffortをStory Handoffへ記録する。
 
 ### Task Lead
 
@@ -25,6 +29,7 @@
 - Requirement、Architecture、Decision、Feedback、PriorityまたはAcceptance Criteriaを独断で変更せず、コード実装、実装検証、Review、受入れおよびEngineering Agentの自動起動を行わない。
 - 先行Taskが`GUI_REVIEW`または`ACCEPTANCE_REVIEW`であることだけを理由に、依存しないTaskの準備を停止しない。
 - Task Leadへの通常指示はProduct Ownerが出すことを基本とする。
+- Product Ownerが承認し、Design Agentから直接送達された指示は通常のTask Lead指示として扱う。
 
 ### Engineering Agent
 
@@ -39,7 +44,7 @@
 - Storyの正本は`stories/`配下のローカル運用記録とする。`stories/TEMPLATE.md`はGit管理対象とし、`stories/INDEX.md`および`stories/S-*.md`はGit管理外とする。Story記録にはHost固有絶対Path、Secret、Credential、Token、Flag、認証情報、Prompt本文、Command／Error本文または非公開思考を記録しない。
 - StoryのStatusは`ACTIVE`、`PAUSED`、`DONE`だけとする。Product Ownerが明示的に開始を指示した時、またはDesign AgentがStory化を提案してProduct Ownerが了承した時に開始する。開始時、Design Agentは未使用の次`S-xxxxx`を採番し、`stories/INDEX.md`と個別Storyを`ACTIVE`として記録する。
 - 単発質問、Task受入れレビュー、既存Taskへの修正指示または短い事実確認ではStoryを採番しない。再開時は同じStoryを`ACTIVE`へ戻す。独立した設計判断または別のTask Lead委譲が必要な話題だけを新Storyとし、過去会話のStory化はProduct Ownerが必要と判断した場合だけ行う。
-- StoryはTask Leadへの指示を発行した時点で`DONE`とする。完結後、StoryでTask ID、SYNC先のRequirement／Decision／Roadmap IDまたはTask実装状況を追跡しない。
+- Storyは承認済み指示の送達成功を確認した時点で`DONE`とする。完結後、Storyで後続Task、正本IDまたはTask実装状況を追跡しない。送達失敗時はStory Statusを変更しない。
 - Design AgentはProduct Ownerの都度承認なしに、Storyの要約、Open Questions、Resume From、Last Updatedおよび`ACTIVE`／`PAUSED`を自律更新できる。おおむね5往復ごと、話題切替、明示承認による重要判断、保留、再開またはTask Lead委譲時に更新する。Confirmed DecisionsにはProduct Owner明示承認だけを記録し、未承認の提案または選択肢はOpen Questionsへ留める。
 - Design AgentのStory実体作成・更新権限は、会話継続性のための`stories/INDEX.md`と`stories/S-*.md`だけに限定する。Product OwnerはStory開始、再開、保留および完結を会話で指示でき、Task LeadとEngineering AgentはStory実体を変更しない。`stories/INDEX.md`の列はStory、Status、Topic、Last Updated、Resume Fromだけとし、関連Task IDまたはRequirement／Decision IDの列を設けない。`stories/TEMPLATE.md`はStory Header、Purpose、Confirmed Decisions、Open Questions、Resume From、HandoffおよびCompletion節を持つ。
 
