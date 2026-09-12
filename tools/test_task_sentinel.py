@@ -1,4 +1,5 @@
 import json
+import msvcrt
 import sys
 import tempfile
 import unittest
@@ -8,13 +9,13 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from task_sentinel import LockUnavailable, observe
+from task_sentinel import LockUnavailable, atomic_write, observe
 
 
 NOW = datetime(2026, 9, 12, 10, tzinfo=timezone.utc)
 
 
-def task(task_id, status, dependencies="none", classification="non-GUI", revision="", updated=None, model="gpt-x", reasoning="medium"):
+def task(task_id, status, dependencies="none", classification="non-GUI", revision="", updated=None, model="gpt-5.6-terra", reasoning="medium"):
     lines = [
         f"# Task: {task_id}", f"- Status: `{status}`", f"- Dependencies: `{dependencies}`",
         f"- Task Record Updated At: `{(updated or NOW).isoformat()}`", f"- Review Classification: `{classification}`",
@@ -35,11 +36,22 @@ class TaskSentinelTests(unittest.TestCase):
     def tearDown(self): self.temporary.cleanup()
     def write(self, identifier, content): (self.tasks / f"{identifier}-sample.md").write_text(content, encoding="utf-8")
 
-    def test_lock_conflict_leaves_state_unchanged(self):
+    def test_actual_windows_lock_conflict_leaves_state_unchanged(self):
         state = self.runtime / "state.json"; self.runtime.mkdir(parents=True); state.write_text('{"done":{},"reservations":{},"notifications":{}}')
-        with patch("task_sentinel.exclusive_lock", side_effect=LockUnavailable()):
+        lock_path = self.runtime / "observer.lock"
+        with lock_path.open("a+b") as holder:
+            holder.write(b"0"); holder.flush(); holder.seek(0)
+            msvcrt.locking(holder.fileno(), msvcrt.LK_NBLCK, 1)
             with self.assertRaises(LockUnavailable): observe(self.tasks, self.runtime, NOW, True)
+            holder.seek(0); msvcrt.locking(holder.fileno(), msvcrt.LK_UNLCK, 1)
         self.assertEqual(json.loads(state.read_text()), {"done": {}, "reservations": {}, "notifications": {}})
+
+    def test_atomic_write_uses_replace_and_leaves_complete_json(self):
+        state = self.runtime / "state.json"; self.runtime.mkdir(parents=True); state.write_text('{"previous":true}', encoding="utf-8")
+        with patch("task_sentinel.os.replace", wraps=__import__("os").replace) as replace:
+            atomic_write(state, {"done": {"T-00001": "a" * 40}, "reservations": {}, "notifications": {}})
+        replace.assert_called_once()
+        self.assertEqual(json.loads(state.read_text(encoding="utf-8"))["done"], {"T-00001": "a" * 40})
 
     def test_done_is_cached_and_not_reread(self):
         revision = "a" * 40; self.write("T-00001", task("T-00001", "DONE", revision=revision))
@@ -82,6 +94,16 @@ class TaskSentinelTests(unittest.TestCase):
         self.assertIn("stalled", str(observe(self.tasks, self.runtime, NOW + timedelta(hours=24))["notification_candidates"]))
         text = (self.runtime / "state.json").read_text(encoding="utf-8")
         self.assertNotIn("# Task", text); self.assertNotIn(str(self.root), text)
+
+    def test_invalid_model_and_reasoning_never_leave_task_metadata(self):
+        unsafe = r"C:\Users\operator\token-value"
+        self.write("T-00030", task("T-00030", "READY", model=unsafe, reasoning="secret-value"))
+        result = observe(self.tasks, self.runtime, NOW, True)
+        self.assertEqual(result["start_candidates"], [])
+        self.assertIn({"kind": "invalid_start_configuration", "task_id": "T-00030"}, result["notification_candidates"])
+        self.assertNotIn(unsafe, json.dumps(result))
+        state = (self.runtime / "state.json")
+        self.assertFalse(state.exists() and unsafe in state.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__": unittest.main()

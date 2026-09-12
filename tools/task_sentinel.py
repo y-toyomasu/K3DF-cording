@@ -15,6 +15,8 @@ from pathlib import Path
 TASK_ID = re.compile(r"^T-\d{5}$")
 FIELD = re.compile(r"^- (?P<name>[A-Za-z][A-Za-z /-]*):\s*`?(?P<value>[^`\n]+?)`?\s*$", re.MULTILINE)
 SAFE_REVISION = re.compile(r"^[0-9a-f]{7,64}$")
+SAFE_MODELS = {"gpt-5.5", "gpt-5.6-luna", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-daybreak-blue-latest"}
+SAFE_REASONING = {"low", "medium", "high", "xhigh", "max", "ultra"}
 STATE_NAME = "state.json"
 
 
@@ -87,6 +89,14 @@ def parse_time(value: str) -> datetime | None:
         return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
     except ValueError:
         return None
+
+
+def safe_configuration(task: dict) -> tuple[str, str] | None:
+    """Return only allowlisted launch settings; never expose task-derived free text."""
+    model, reasoning = task["model"], task["reasoning"]
+    if model in SAFE_MODELS and reasoning in SAFE_REASONING:
+        return model, reasoning
+    return None
 
 
 def dependencies_resolved(task: dict, statuses: dict[str, str]) -> bool:
@@ -173,7 +183,12 @@ def observe(tasks_dir: Path, runtime_dir: Path, now: datetime, reserve: bool = F
                 key = f"start:{task['id']}"
                 if key in state["reservations"]:
                     continue
-                candidate = {"task_id": task["id"], "model": task["model"], "reasoning": task["reasoning"]}
+                configuration = safe_configuration(task)
+                if configuration is None:
+                    result["notification_candidates"].append({"kind": "invalid_start_configuration", "task_id": task["id"]})
+                    continue
+                model, reasoning = configuration
+                candidate = {"task_id": task["id"], "model": model, "reasoning": reasoning}
                 result["start_candidates"].append(candidate)
                 if reserve:
                     state["reservations"][key] = {"at": now.isoformat(), "claimed_confirmed": False}

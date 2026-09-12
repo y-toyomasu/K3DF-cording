@@ -2,13 +2,13 @@
 
 `task_sentinel.py` reads only the lifecycle metadata required by Task Sentinel. It never changes Task files, Git, documents, or agent settings. Its sole write location is the ignored `runtime/task-observer/` directory, where it keeps atomic reservation, notification, and completed-task metadata.
 
-Run an observation without changing runtime state:
+Run an observation. It may persist only completed-task caching, notification cooldowns, and observed `CLAIMED` confirmations; it does not create a new action reservation:
 
 ```powershell
 python tools/task_sentinel.py
 ```
 
-Persist only the returned start or review reservations:
+Persist the returned start or review reservations as well as the normal lifecycle-observation state:
 
 ```powershell
 python tools/task_sentinel.py --reserve
