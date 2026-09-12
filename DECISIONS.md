@@ -40,6 +40,42 @@
 
 以下はProduct Ownerが承認したDecisionである。実装・検証状態はDecisionごとに異なるため、各Verificationおよび関連Taskを参照する。
 
+## D-00032: Read-only Task Sentinel heartbeat observation
+
+- Status: Accepted
+- Date: 2026-09-12
+- Source: Product Owner approved Problem / Feedback — Taskの停滞、レビュー待ちおよび受入れ待ちを、安全に定期観測して同一TS専用チャットへ報告する必要がある。
+
+### Context
+
+Product Ownerは複数のTaskを順次運用する。Task Sentinel（TS）は10分HeartbeatでTask状態を観測して支援できるが、Task、Git、正本またはAgent設定を変更してはならない。監視状態は監査可能であり、同じ完了TaskやReviewを繰り返し処理せず、秘密情報やHost固有情報を保存・出力しない必要がある。
+
+### Decision
+
+TSは`gpt-5.6-luna`／`medium`を想定するread-only監視Roleとする。runtime状態はGit管理外の`runtime/task-observer/`だけに限定し、Windows OSの排他Lock、原子的状態更新および重複Action防止を持つ決定論的なTask Sentinel helper Toolで管理する。
+
+Toolは`DONE` Task IDと最終Revisionを保持し、以後のCycleでは通常ScanおよびTask本文再読込から除外する。状態は自動削除しない。Git変更Taskのレビュー識別子は、レビュー公開統合直後の対象Repositoryごとのlocal main HEADを記録する`Review Main Revision`とする。Git管理外TaskはREPORT時に`Task Review Revision`を記録する。Reviewの重複排除は`Task ID + Review Revision`で行い、現在のmain HEADは使用しない。既存Taskに必要なRevisionがなければ推測せずEngineering Agentへ不足として報告する。
+
+依存解消済みの`READY` Taskだけを、対象Taskの推奨Model／Reasoningで自動起動できる。自動起動中のEngineering Agentは最大2件とし、先行Agentの`CLAIMED`確認後に次を起動する。`GUI_REVIEW`はProduct Ownerへ報告だけを行う。非GUIの`ACCEPTANCE_REVIEW`は予約後にReview Agentを起動できるが、受入れは必ずProduct Ownerへ確認する。明示受入れ後だけ、新規Engineering Agentが受入れ記録と`DONE`遷移を担当できる。
+
+`CLAIMED`または`IMPLEMENTING`でTask記録更新から45分以上経過した長期停滞、新規`BLOCKED`、依存不整合および受入れ待ちは初回報告し、未解消なら24時間後に再通知する。`READY`かつ未解消Dependencyは異常扱いしない。Product OwnerはTS専用チャットで10分Heartbeatの開始・停止・再開を指示し、同じチャットで報告を受ける。
+
+### Rationale
+
+状態を限定したread-only監視と決定論的な重複排除により、Lifecycleの所有権を侵さずに定期的な運用可視性を得るため。
+
+### Alternatives considered
+
+TSがTask、Gitまたは正本を直接更新する案は、Engineering AgentとProduct OwnerのLifecycle所有権を混同するため採用しない。現在のmain HEADをReview重複排除に使う案は、レビュー公開時の対象Revisionを安定して識別できないため採用しない。
+
+### Consequences
+
+管理RepositoryにHelper ToolとTS運用文書を追加する。Engineering AgentはGit変更Taskのレビュー公開統合時に`Review Main Revision`を、Git管理外TaskのREPORT時に`Task Review Revision`を記録する。TSは不足Revisionを補完せず、担当Engineering Agentへ報告する。
+
+### Verification
+
+GovernanceとTask Templateの整合を静的確認する。Helper ToolはLock、原子的更新、DONE除外、Review重複排除、秘密・Host固有情報非記録、Action予約および停滞通知条件を自動Testで確認する。運用文書はTS専用チャットの開始・停止・再開と報告受領手順を明示する。
+
 ## D-00001: Capability Graph as the canonical intrusion model
 - Status: Accepted
 - Date: 2026-08-24
