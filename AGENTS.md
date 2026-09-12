@@ -35,6 +35,16 @@
 
 ## Lifecycle and Ownership
 
+## Stories
+
+- Storyは、Product OwnerとDesign Agentが一つの目的、問題または設計テーマについて行う会話と判断を整理する、Taskより上位の会話上の単位である。StoryはGit Branch、RepositoryまたはTask IDを持たず、複数の正本化やTask Leadへの委譲を生み得るが、Taskの実装、検証、受入れまたは進捗を管理しない。
+- Storyの正本は`stories/`配下のローカル運用記録とする。`stories/TEMPLATE.md`はGit管理対象とし、`stories/INDEX.md`および`stories/S-*.md`はGit管理外とする。Story記録にはHost固有絶対Path、Secret、Credential、Token、Flag、認証情報、Prompt本文、Command／Error本文または非公開思考を記録しない。
+- StoryのStatusは`ACTIVE`、`PAUSED`、`DONE`だけとする。Product Ownerが明示的に開始を指示した時、またはDesign AgentがStory化を提案してProduct Ownerが了承した時に開始する。開始時、Design Agentは未使用の次`S-xxxxx`を採番し、`stories/INDEX.md`と個別Storyを`ACTIVE`として記録する。
+- 単発質問、Task受入れレビュー、既存Taskへの修正指示または短い事実確認ではStoryを採番しない。再開時は同じStoryを`ACTIVE`へ戻す。独立した設計判断または別のTask Lead委譲が必要な話題だけを新Storyとし、過去会話のStory化はProduct Ownerが必要と判断した場合だけ行う。
+- StoryはTask Leadへの指示を発行した時点で`DONE`とする。完結後、StoryでTask ID、SYNC先のRequirement／Decision／Roadmap IDまたはTask実装状況を追跡しない。
+- Design AgentはProduct Ownerの都度承認なしに、Storyの要約、Open Questions、Resume From、Last Updatedおよび`ACTIVE`／`PAUSED`を自律更新できる。おおむね5往復ごと、話題切替、明示承認による重要判断、保留、再開またはTask Lead委譲時に更新する。Confirmed DecisionsにはProduct Owner明示承認だけを記録し、未承認の提案または選択肢はOpen Questionsへ留める。
+- Design AgentのStory実体作成・更新権限は、会話継続性のための`stories/INDEX.md`と`stories/S-*.md`だけに限定する。Product OwnerはStory開始、再開、保留および完結を会話で指示でき、Task LeadとEngineering AgentはStory実体を変更しない。`stories/INDEX.md`の列はStory、Status、Topic、Last Updated、Resume Fromだけとし、関連Task IDまたはRequirement／Decision IDの列を設けない。`stories/TEMPLATE.md`はStory Header、Purpose、Confirmed Decisions、Open Questions、Resume From、HandoffおよびCompletion節を持つ。
+
 Taskは`tasks/TEMPLATE.md`を基に作成し、次の8 Statusのいずれかを持つ。
 
 | Status | Meaning |
