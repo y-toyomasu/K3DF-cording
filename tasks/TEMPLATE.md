@@ -10,6 +10,8 @@
 - Time Box Exception: <none | 30分超過が必要な理由とProduct Ownerの明示承認>
 - Claimed By: <none | Engineering Agent identifier>
 - Claimed At: <none | ISO 8601 timestamp>
+- Task Record Updated At: <none | ISO 8601 timestamp。TSが監視するLifecycle記録の最終更新時刻>
+- Review Classification: <GUI | non-GUI | 未判定>
 
 > Sourceが存在しないTaskは実装不可。
 
@@ -126,10 +128,14 @@
 - Commit Hash: <Task Commit Hash>
 - Commit Subject: <`<type>(<scope>): <日本語の要約> [T-xxxxx]`>
 - Worktree Clean: <確認結果>
+- Review Main Revision: <Git変更Taskのレビュー公開統合直後に記録する対象Repositoryのlocal main HEAD。Git管理外Taskまたは未取得時は対象外／未取得理由>
+- Task Review Revision: <Git管理外TaskがREPORT時に記録するTask記録Revision。Git変更Taskまたは未取得時は対象外／未取得理由>
 - Accepted Branch HEAD: <Product Ownerの受入れ対象Commit Hash。受入れ前は未受入れ>
 - Integrated local main Commit: <受入れ後にfast-forwardしたlocal main Commit Hash。統合前は未統合>
 - Push: <Product Owner管理。Engineering AgentはPushしない>
 - Not Applicable Reason: <Git Repositoryを変更しない場合のCommit対象外理由>
+
+> TSはTaskのStatus、Task Record Updated At、Dependencies、Review ClassificationおよびReview Revisionだけを監視に使用する。Revisionの不足を推測または補完せず、Task本文、Prompt、Command／Error本文、Secret、Credential、Token、Flag、認証情報、実行秘密およびHost固有絶対Pathをruntime状態または出力へ含めない。
 
 ## Deviations
 

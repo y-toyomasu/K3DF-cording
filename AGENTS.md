@@ -1,6 +1,6 @@
 # K3DF-local 開発憲法
 
-このワークスペースは、Humanである **Product Owner** と、**Design Agent**、**Task Lead**、**Engineering Agent** の四者で運用する。本書は開発プロセスの最上位ルールであり、個別Repositoryの規約と競合する場合は本書を優先する。
+このワークスペースは、Humanである **Product Owner** と、**Design Agent**、**Task Lead**、**Engineering Agent** の四者で運用する。**Task Sentinel（TS）**はこれらの所有権を変更しないread-only監視Roleとする。本書は開発プロセスの最上位ルールであり、個別Repositoryの規約と競合する場合は本書を優先する。
 
 ## Roles
 
@@ -37,6 +37,14 @@
 - 事実、結果、逸脱をTaskへ記録し、要求または基本設計を推測で確定しない。判断が必要ならTaskを`BLOCKED`にし、Findingsへ事実・影響・論点を記録してDesign Agentへ委ねる。
 - 実装前に、`AGENTS.md`、Task全文、Taskの`Source`、Taskの`Required Reading`、対象RepositoryのTask Branch上の関連Code／Compose／設定／Test／README、および明示されたDependency Handoffを参照する。
 - Roadmapは優先順位と完了表示の参照に限定し、Task実装範囲を拡張する根拠にしない。`ARCHITECTURE.md`は関連コンポーネント・境界の参考情報であり、Task Branch上の現行実装またはTask範囲を上書きしない。
+
+### Task Sentinel
+
+- TSは`gpt-5.6-luna` / `medium`を想定するread-only監視Roleであり、Task、Git、正本、Agent設定、Lifecycle Status、Task記録およびProduct Repositoryを変更しない。runtime状態はGit管理外の`runtime/task-observer/`だけに限定する。
+- Product OwnerはTS専用チャットで10分Heartbeatの開始・停止・再開を指示し、TSは同じチャットへ報告する。Task本文、Prompt、Command／Error本文、Secret、Credential、Token、Flag、認証情報、実行秘密またはHost固有絶対PathをTSのruntime状態または出力へ含めない。
+- TSは依存解消済みの`READY` Taskだけを、対象Taskの推奨Model／Reasoningで自動起動できる。自動起動中のEngineering Agentは最大2件とし、次の起動前に先行Agentの`CLAIMED`を確認する。`READY`かつ未解消Dependencyは異常として扱わない。
+- TSは`GUI_REVIEW`をProduct Ownerへ報告するだけとする。非GUIの`ACCEPTANCE_REVIEW`は、重複しないよう予約後にReview Agentを起動できるが、受入れは必ずProduct Ownerへ確認する。Product Ownerの明示受入れ後だけ、新規Engineering Agentが受入れ記録と`DONE`遷移を担当できる。
+- TSは`CLAIMED`または`IMPLEMENTING`でTask記録更新から45分以上経過した長期停滞、新規`BLOCKED`、依存不整合および受入れ待ちを初回報告し、未解消なら24時間後に再通知する。`DONE` Taskは最終Revisionとともに保持し、以後の通常ScanおよびTask本文再読込から除外する。Reviewの重複排除は`Task ID + Review Revision`で行い、不足するRevisionを推測せず担当Engineering Agentへ報告する。
 
 ## Stories
 
@@ -101,7 +109,7 @@ Taskは`tasks/TEMPLATE.md`を基に作成し、次の8 Statusのいずれかを�
 2. **PREPARE**: Taskが変更するRepository、Source、Dependencies、変更範囲および既存差分を確認する。RequirementとDecisionはSupersededまたはPartially Supersededの関係を確認し、activeなものを適用する。Task、activeなRequirement／Decision、Dependency InterfaceまたはTask Branch実装状態に未解消の矛盾があれば推測せず`BLOCKED`にしてFindingsへ記録する。Git変更Taskは対象RepositoryごとにTask Branchと専用worktreeを作成または再利用し、その時点のlocal main Commitを`Base main Commit`として記録する。以後、当該Commitから作成または再利用したTask Branch上のCode、Compose、設定およびTestを確認すべき実装状態とする。Architecture-only driftはコード変更の理由にせず、Acceptance Criteria、安全境界、公開Interface、Dependency Interfaceまたは検証へ影響する場合だけ`BLOCKED`にする。影響しない場合はTask Findingsへ`Architecture Drift`として記録する。不合格なら実装へ進まない。
 3. **IMPLEMENT**: PREPARE合格後だけ`IMPLEMENTING`へ変更し、検証済みTaskの範囲内で実装する。
 4. **VERIFY**: Taskに該当するBuild、Test、静的検証およびGUI確認を行い、失敗時はDiagnose、Fix、Re-testする。対象外項目は「対象外」と簡潔な理由をTaskへ記録する。未達または判断待ちならレビュー状態へ進まず`BLOCKED`とする。
-5. **REPORT**: Git変更TaskはVERIFY後にCommit前Diffとstaged diffを確認してCommitする。その後Implementation、Branch / Worktree、Build、Test、Verification、Commit、Deviations、FindingsおよびGUI FeedbackをTaskへ記録し、GUI対象は`GUI_REVIEW`、非GUI対象は`ACCEPTANCE_REVIEW`へ移す。最終受入れ前に`DONE`へ移さず、完了後に別Taskを自動取得しない。
+5. **REPORT**: Git変更TaskはVERIFY後にCommit前Diffとstaged diffを確認してCommitする。その後Implementation、Branch / Worktree、Build、Test、Verification、Commit、Deviations、FindingsおよびGUI FeedbackをTaskへ記録し、GUI対象は`GUI_REVIEW`、非GUI対象は`ACCEPTANCE_REVIEW`へ移す。Git変更Taskはレビュー公開統合直後に対象Repositoryのlocal main HEADを`Review Main Revision`として記録する。Git管理外TaskはREPORT時のTask記録Revisionを`Task Review Revision`として記録する。いずれも取得できない場合は推測せず未取得理由を記録する。最終受入れ前に`DONE`へ移さず、完了後に別Taskを自動取得しない。
 
 ### BLOCKED Resume: `BLOCKED → CLAIMED → IMPLEMENTING`
 
@@ -116,7 +124,7 @@ Taskは`tasks/TEMPLATE.md`を基に作成し、次の8 Statusのいずれかを�
 - 同じファイルを変更する並行Taskは主要な変更PathをTaskへ記録し、Product Ownerが統合順を判断する。
 - Commit前にstaged diffを確認し、自Task外の変更が含まれる場合はCommitしない。他Taskまたは利用者の変更をCommit、Unstage、RevertまたはCleanupしない。`git add .`と`git add -A`の使用自体は禁じない。
 - Commit SubjectにはTask IDを含める。本文と`Why`、`What`、`Verify`見出しは任意とし、未実施の検証を成功と記載しない。
-- `GUI_REVIEW`または`ACCEPTANCE_REVIEW`のGit変更Taskは、VERIFY、CommitおよびREPORT後、レビュー公開のためにTask Branchをlocal mainへ統合する。実装、検証およびCommitは引き続き専用worktree内で行い、Product Ownerが統合順を判断する。
+- `GUI_REVIEW`または`ACCEPTANCE_REVIEW`のGit変更Taskは、VERIFY、CommitおよびREPORT後、レビュー公開のためにTask Branchをlocal mainへ統合する。実装、検証およびCommitは引き続き専用worktree内で行い、Product Ownerが統合順を判断する。統合直後に対象Repositoryのlocal main HEADを`Review Main Revision`としてTaskへ記録し、現在のmain HEADで代用または推測しない。
 - レビュー公開の統合は、Task Branch、専用worktreeおよびlocal mainに想定外差分がなく、local mainがTask Branchへfast-forward可能な場合だけ実行し、統合CommitをTaskへ記録する。local mainが進行して直接統合できない場合は、必要に応じてlocal mainをTask Branchへmergeする。Conflictまたは内容変化があれば影響範囲を再検証し、統合不可能ならlocal mainを変更しない。
 - local mainとRemote mainは、レビュー中・受入れ待ちの変更を含み得る開発統合環境とする。GitHubへのPushはProduct Ownerだけが行い、Task LeadとEngineering AgentによるPush、`--amend`、rebaseおよびforce操作を禁止する。
 - Product Ownerの明示的な最終受入れ後、Engineering Agentが受入れ結果をTaskへ記録する。Git変更TaskはAccepted Branch HEADがlocal mainに含まれることを確認・記録してから`DONE`へ移す。レビュー公開時に統合済みであれば再統合は不要であり、未統合の場合は同じ統合条件でlocal mainへ統合する。Git管理外TaskはCommit対象外理由を記録し、受入れ後に`DONE`へ移せる。
