@@ -147,6 +147,7 @@ name="Attacker Observability"
 [[workstreams.items]]
 id="observed-attack-path-contract"
 horizon="next"
+status="done"
 display_order=10
 name="Observed Attack Path Contract"
 purpose="Evidenceに基づく階層Graph、Credential表示およびLibrary Decisionを確立する"
