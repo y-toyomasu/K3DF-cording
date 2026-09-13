@@ -961,3 +961,33 @@ K3ATの探索実績を、K3DF Capability Graph、Strategy Brief、CTF Ground Tru
 ### Verification
 
 T-00061でRequirement、DecisionおよびProduct Roadmapの整合を確認する。実装後に限りData Contract、Credential表示、Library互換性、Dashboard操作、境界およびArchitectureを検証・記録する。
+
+## D-00033: Codex Subagent execution-observation contract
+
+- Status: `Accepted`
+- Date: `2026-09-14`
+- Source: Product Owner承認済みDesign（Agent実行設定の観測記録）
+
+### Context
+
+Codex起動時に指定したModel／Reasoningと、実行環境から独立に確認できる値を混同すると、運用記録の信頼性を損なう。全SubAgentに一貫して適用でき、起動を妨げず、秘匿情報を残さない観測契約と配布可能なHook bundleを分離して整備する。
+
+### Decision
+
+- 起動時指定は`Requested Model`および`Requested Reasoning`、実行環境から独立に確認した値は`Observed Model`および`Observed Reasoning`として区別する。指定値、親Agentの説明、Task推奨値、既定設定または推測からObserved値を作らない。
+- 観測値はCodex Hookまたはセッション記録から確認できた場合だけ記録する。確認不能な値は`not independently verifiable`と最小限の`Unavailable Reason`で表す。
+- V1の観測対象は公式の`SubagentStart` Hook入力から取得できる`model`だけとする。Reasoning EffortはHook入力から取得しないため、`Observed Reasoning`は未観測として扱う。
+- Hook対象はこの管理Repositoryから起動する全SubAgentとし、Task Sentinelが起動するEngineering Agentにも同じ契約を適用する。Hook未導入、Project未信頼、未読込またはHook失敗はSubAgent起動を妨げず、観測結果だけを`unavailable`とする。
+- 実行時の`.codex/`はGit管理外かつProduct Owner管理とする。AgentはProduct Owner個人のCodex設定を変更しない。配布bundleはK3Opsで追跡し、実行時のHook定義とHandlerはProduct Ownerが手動導入するGit管理外コピーとする。
+- runtime記録はGit管理外とし、30日または100件のいずれか早い上限を超えた古い記録から削除する。更新は排他・原子的置換で行う。
+- runtime、Task、Story、READMEおよび共有ReportへSession ID、Agent ID、transcript path、Prompt、Command／Error本文、Host固有絶対Path、Secret、Credential、Token、Flag、認証情報または非公開思考を記録しない。公式Docsにない機能Flagは採用しない。
+- Handlerは固定形式のObservation ReferenceとObserved Modelだけを子Agentへ渡せる。子Engineering AgentはCLAIM時にその参照をTaskへ記録し、子Task Leadは最終報告で参照を返せる。
+
+### Consequences
+
+- 管理Repositoryの記録契約、Task／Story templateおよびGit ignore境界は、独立Taskで更新する。既存Taskと既存Storyへは遡及適用しない。
+- K3Opsは`SubagentStart`専用のHook bundle、Handler Source、最小検証および手動導入のREADMEを独立Taskで提供する。Hookはnetwork、Git、Task、正本またはAgent設定を変更しない。
+
+### Verification
+
+後続Taskで、記録契約の静的整合、および合成Hook入力による許可項目・禁止項目・保持上限・失敗時非阻害・Task Sentinel起動SubAgentへの同一適用を検証する。
