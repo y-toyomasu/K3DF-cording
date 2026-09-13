@@ -51,7 +51,7 @@
 - 起動時指定は`Requested Model`と`Requested Reasoning`、Codex Hookまたはセッション記録で独立確認した値は`Observed Model`と`Observed Reasoning`として区別する。指定値、親Agent説明、Task推奨値、既定設定または推測からObserved値を作らない。
 - V1では公式`SubagentStart` Hook入力から得る`model`だけをObserved対象とする。Reasoning Effortは未観測とし、Hook未導入、Project未信頼、未読込またはHook失敗はSubAgent起動を妨げず、Observation Statusを`unavailable`として最小限のUnavailable Reasonを記録する。
 - この管理Repositoryから起動する全SubAgentと、TSが起動するEngineering Agentに同じ記録契約を適用する。Handlerから渡された固定形式のObservation ReferenceとObserved Modelだけを記録でき、子Engineering AgentはCLAIM時にReferenceをTaskへ記録し、子Task Leadは最終報告でReferenceを返す。
-- 実行時の`.codex/`とagent observation runtimeはGit管理外かつProduct Owner管理とする。Agentは個人Codex設定を変更せず、runtimeは30日または100件のいずれか早い上限を超えた古い記録から削除する。
+- 実行時の`.codex/`とagent observation runtimeはGit管理外かつProduct Owner管理とする。Agentは個人Codex設定を変更せず、runtimeは30日または100件のいずれか早い上限を超えた古い記録から削除し、更新は排他・原子的置換で行う。
 - runtime、Task、Story、READMEおよび共有ReportにSession ID、Agent ID、transcript path、Prompt、Command／Error本文、Host固有絶対Path、Secret、Credential、Token、Flag、認証情報または非公開思考を記録しない。公式Docsにない機能Flagは採用しない。
 
 ## Stories

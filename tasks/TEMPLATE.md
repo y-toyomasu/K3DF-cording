@@ -70,7 +70,7 @@
   - post_report_rework: <count | null>
 - Metric Unavailable Reason: <値がnullの同名Metricだけに対応する理由。実測値と併記しない>
 
-> Requested値、親Agent説明、Task推奨値、既定設定または推測からObserved値を作らない。V1のObserved対象は公式`SubagentStart` Hook入力のmodelだけであり、Hook未導入、Project未信頼、未読込またはHook失敗は起動を妨げずObservation Statusを`unavailable`とする。将来作成されるEngineering Agent対象の実開発Taskだけに適用する。Task本文、Prompt、Command／Error本文、Host固有絶対Path、Secret、Credential、Token、Flag、認証情報、実行秘密および非公開思考は記録しない。記録だけでEvaluator実行、Benchmark比較、Model／Agent設定変更、推薦または外部送信を行わない。
+> Requested値、親Agent説明、Task推奨値、既定設定または推測からObserved値を作らない。V1のObserved対象は公式`SubagentStart` Hook入力のmodelだけであり、Hook未導入、Project未信頼、未読込またはHook失敗は起動を妨げずObservation Statusを`unavailable`とする。agent observation runtimeはProduct Owner管理のGit管理外とし、30日または100件のいずれか早い上限で保持し、更新は排他・原子的置換で行う。将来作成されるEngineering Agent対象の実開発Taskだけに適用する。Task本文、Prompt、Command／Error本文、Host固有絶対Path、Secret、Credential、Token、Flag、認証情報、実行秘密および非公開思考は記録しない。記録だけでEvaluator実行、Benchmark比較、Model／Agent設定変更、推薦または外部送信を行わない。
 
 ## Required Reading
 
