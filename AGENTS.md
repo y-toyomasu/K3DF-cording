@@ -46,6 +46,14 @@
 - TSは`GUI_REVIEW`をProduct Ownerへ報告するだけとする。非GUIの`ACCEPTANCE_REVIEW`は、重複しないよう予約後にReview Agentを起動できるが、受入れは必ずProduct Ownerへ確認する。Product Ownerの明示受入れ後だけ、新規Engineering Agentが受入れ記録と`DONE`遷移を担当できる。
 - TSは`CLAIMED`または`IMPLEMENTING`でTask記録更新から45分以上経過した長期停滞、新規`BLOCKED`、依存不整合および受入れ待ちを初回報告し、未解消なら24時間後に再通知する。`DONE` Taskは最終Revisionとともに保持し、以後の通常ScanおよびTask本文再読込から除外する。Reviewの重複排除は`Task ID + Review Revision`で行い、不足するRevisionを推測せず担当Engineering Agentへ報告する。
 
+### SubAgent execution observation
+
+- 起動時指定は`Requested Model`と`Requested Reasoning`、Codex Hookまたはセッション記録で独立確認した値は`Observed Model`と`Observed Reasoning`として区別する。指定値、親Agent説明、Task推奨値、既定設定または推測からObserved値を作らない。
+- V1では公式`SubagentStart` Hook入力から得る`model`だけをObserved対象とする。Reasoning Effortは未観測とし、Hook未導入、Project未信頼、未読込またはHook失敗はSubAgent起動を妨げず、Observation Statusを`unavailable`として最小限のUnavailable Reasonを記録する。
+- この管理Repositoryから起動する全SubAgentと、TSが起動するEngineering Agentに同じ記録契約を適用する。Handlerから渡された固定形式のObservation ReferenceとObserved Modelだけを記録でき、子Engineering AgentはCLAIM時にReferenceをTaskへ記録し、子Task Leadは最終報告でReferenceを返す。
+- 実行時の`.codex/`とagent observation runtimeはGit管理外かつProduct Owner管理とする。Agentは個人Codex設定を変更せず、runtimeは30日または100件のいずれか早い上限を超えた古い記録から削除する。
+- runtime、Task、Story、READMEおよび共有ReportにSession ID、Agent ID、transcript path、Prompt、Command／Error本文、Host固有絶対Path、Secret、Credential、Token、Flag、認証情報または非公開思考を記録しない。公式Docsにない機能Flagは採用しない。
+
 ## Stories
 
 - Storyは、Product OwnerとDesign Agentが一つの目的、問題または設計テーマについて行う会話と判断を整理する、Taskより上位の会話上の単位である。StoryはGit Branch、RepositoryまたはTask IDを持たず、複数の正本化やTask Leadへの委譲を生み得るが、Taskの実装、検証、受入れまたは進捗を管理しない。
@@ -91,8 +99,8 @@ Taskは`tasks/TEMPLATE.md`を基に作成し、次の8 Statusのいずれかを�
 
 - この節は本規約施行後に作成されるEngineering Agent対象の実開発Taskへ適用し、既存の公開済み、取得済みまたは`DONE` Taskへ遡及適用しない。記録はEvaluatorへの入力候補であり、TaskのLifecycle Gate、実装Dependency、受入れ条件、Benchmark比較、Model／Agent設定変更または自動推薦に使用しない。
 - Task LeadはDRAFT時に`Role`、`Task Type`、`Risk`およびRubric Version `1.0`の`Predicted Difficulty`を記録する。Difficultyは`Change Surface`、`Uncertainty`、`Integration`、`Verification`、`Safety Risk`、`Coordination`の六軸を各0〜3で評価し、`Total`、`Band`および`Confidence`を併記する。採点を理由にDesign Agentへ差し戻さない。
-- Engineering AgentはCLAIM時に実際に使用するModel、Reasoningおよび実行時`AGENTS.md`のGit object IDを`agents_revision`として記録する。`agents_revision`は40桁または64桁の小文字16進数だけとし、取得不能時は`null`とする。本文、取得CommandおよびHost固有絶対Pathは記録しない。
-- Engineering AgentはREPORT時にRubric Version `1.0`の`Realized Difficulty`、1〜8件の非秘密な構造的根拠、`Quality`、`Process Waiting`、`Execution Friction`および`Unavailable Reason`を記録する。根拠は変更範囲、検証件数、依存関係または工程結果などの構造情報に限定し、Task本文やPrompt本文を記録しない。
+- Engineering AgentはCLAIM時にRequested／Observed、Observation Status、Observation Source、Unavailable ReasonおよびObservation Referenceを記録し、Observed値は独立確認できた場合だけ記録する。`agents_revision`は実行時`AGENTS.md`のGit object IDを40桁または64桁の小文字16進数だけで記録し、取得不能時は`null`とする。本文、取得CommandおよびHost固有絶対Pathは記録しない。
+- Engineering AgentはREPORT時にRubric Version `1.0`の`Realized Difficulty`、1〜8件の非秘密な構造的根拠、`Quality`、`Process Waiting`、`Execution Friction`および`Metric Unavailable Reason`を記録する。根拠は変更範囲、検証件数、依存関係または工程結果などの構造情報に限定し、Task本文やPrompt本文を記録しない。
 - 取得できないMetricは推測値または`0`へ置換せず`null`と同名の`unavailable_reason`を記録し、実測値と理由を併記しない。取得待ち、依存待ち、Review／Acceptance待ちはActive作業時間に含めない。
 - Task本文、Prompt、Command／Error本文、Secret、Credential、Token、Flag、認証情報、実行秘密、非公開思考およびHost固有絶対PathをOperational Observation MetadataまたはReportへ含めない。専用Benchmark、追加計測、再実行または後追い復元を要求しない。
 - 既存のTask記録、Product文書、Evaluatorおよび安全境界を変更せず、Operational Observationの記録だけを理由に既存Taskを再採点しない。30分のActive作業目標は計画上の負荷制限であり、強制終了、検証省略または自動停止には使用しない。

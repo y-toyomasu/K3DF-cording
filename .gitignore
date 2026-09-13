@@ -5,3 +5,5 @@
 /stories/INDEX.md
 /stories/S-*.md
 /runtime/task-observer/
+/.codex/
+/runtime/agent-observations/

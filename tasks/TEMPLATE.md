@@ -20,8 +20,14 @@
 - Role: <Task LeadがDRAFT時に記録するRole>
 - Task Type: <Task LeadがDRAFT時に記録するTask Type>
 - Risk: <Task LeadがDRAFT時に記録するRisk>
-- Actual Model: <Engineering AgentがCLAIM時に確認できる場合だけ記録する。未取得時はnull>
-- Actual Reasoning: <Engineering AgentがCLAIM時に確認できる場合だけ記録する。未取得時はnull>
+- Requested Model: <起動時に指定されたmodel。未指定時はnot requested>
+- Requested Reasoning: <起動時に指定されたreasoning。未指定時はnot requested>
+- Observed Model: <Codex Hookまたはセッション記録で独立確認できたmodel。確認不能時はnot independently verifiable>
+- Observed Reasoning: <V1ではnot independently verifiable>
+- Observation Status: <observed | unavailable>
+- Observation Source: <SubagentStart Hook | session record | unavailable>
+- Unavailable Reason: <Observation Statusがunavailableの場合だけ最小限の理由。Observed値を推測しない>
+- Observation Reference: <Handlerから渡された固定形式の参照。未提供時はnot provided>
 - agents_revision: <Engineering AgentがCLAIM時に40桁または64桁の小文字16進数だけを記録する。未取得時はnull>
 - Predicted Difficulty:
   - Rubric Version: `1.0`
@@ -62,9 +68,9 @@
   - retries: <count | null>
   - reverification: <count | null>
   - post_report_rework: <count | null>
-- Unavailable Reason: <値がnullの同名Metricだけに対応する理由。実測値と併記しない>
+- Metric Unavailable Reason: <値がnullの同名Metricだけに対応する理由。実測値と併記しない>
 
-> 将来作成されるEngineering Agent対象の実開発Taskだけに適用する。Task本文、Prompt、Command／Error本文、Host固有絶対Path、Secret、Credential、Token、Flag、認証情報、実行秘密および非公開思考は記録しない。記録だけでEvaluator実行、Benchmark比較、Model／Agent設定変更、推薦または外部送信を行わない。
+> Requested値、親Agent説明、Task推奨値、既定設定または推測からObserved値を作らない。V1のObserved対象は公式`SubagentStart` Hook入力のmodelだけであり、Hook未導入、Project未信頼、未読込またはHook失敗は起動を妨げずObservation Statusを`unavailable`とする。将来作成されるEngineering Agent対象の実開発Taskだけに適用する。Task本文、Prompt、Command／Error本文、Host固有絶対Path、Secret、Credential、Token、Flag、認証情報、実行秘密および非公開思考は記録しない。記録だけでEvaluator実行、Benchmark比較、Model／Agent設定変更、推薦または外部送信を行わない。
 
 ## Required Reading
 
