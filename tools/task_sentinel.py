@@ -18,6 +18,7 @@ SAFE_REVISION = re.compile(r"^[0-9a-f]{7,64}$")
 SAFE_MODELS = {"gpt-5.5", "gpt-5.6-luna", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-daybreak-blue-latest"}
 SAFE_REASONING = {"low", "medium", "high", "xhigh", "max", "ultra"}
 STATE_NAME = "state.json"
+RUNTIME_DIR = Path(__file__).resolve().parent.parent / "runtime" / "task-observer"
 
 
 class LockUnavailable(RuntimeError):
@@ -109,9 +110,10 @@ def should_notify(state: dict, key: str, now: datetime) -> bool:
     return previous is None or now - previous >= timedelta(hours=24)
 
 
-def observe(tasks_dir: Path, runtime_dir: Path, now: datetime, reserve: bool = False) -> dict:
+def observe(tasks_dir: Path, now: datetime, reserve: bool = False) -> dict:
     """Return safe candidates; optionally persist only explicit action reservations."""
     now = now.astimezone(timezone.utc)
+    runtime_dir = RUNTIME_DIR
     with exclusive_lock(runtime_dir):
         state_path = runtime_dir / STATE_NAME
         state = read_state(state_path)
@@ -144,8 +146,13 @@ def observe(tasks_dir: Path, runtime_dir: Path, now: datetime, reserve: bool = F
                 else:
                     result["notification_candidates"].append({"kind": "missing_done_revision", "task_id": task_id})
                 continue
+            unresolved_dependencies = not dependencies_resolved(task, statuses)
             notification_kind = None
-            if status in {"CLAIMED", "IMPLEMENTING"}:
+            # READY is allowed to wait on dependencies; BLOCKED reports its own state.
+            # Every later active or review state requires resolved dependencies.
+            if status in {"CLAIMED", "IMPLEMENTING", "GUI_REVIEW", "ACCEPTANCE_REVIEW"} and unresolved_dependencies:
+                notification_kind = "dependency_inconsistent"
+            elif status in {"CLAIMED", "IMPLEMENTING"}:
                 updated = parse_time(task["updated_at"])
                 if updated and now - updated >= timedelta(minutes=45):
                     notification_kind = "stalled"
@@ -153,8 +160,6 @@ def observe(tasks_dir: Path, runtime_dir: Path, now: datetime, reserve: bool = F
                 notification_kind = "blocked"
             elif status == "ACCEPTANCE_REVIEW":
                 notification_kind = "acceptance_waiting"
-            elif status not in {"READY", "GUI_REVIEW", "DESIGN", ""} and not dependencies_resolved(task, statuses):
-                notification_kind = "dependency_inconsistent"
             if notification_kind:
                 key = f"{notification_kind}:{task_id}"
                 if should_notify(state, key, now):
@@ -202,7 +207,6 @@ def observe(tasks_dir: Path, runtime_dir: Path, now: datetime, reserve: bool = F
 def main() -> int:
     parser = argparse.ArgumentParser(description="Observe task lifecycle metadata and reserve safe candidate actions.")
     parser.add_argument("--tasks-dir", type=Path, default=Path("tasks"))
-    parser.add_argument("--runtime-dir", type=Path, default=Path("runtime/task-observer"))
     parser.add_argument("--reserve", action="store_true", help="Persist only returned action reservations.")
     parser.add_argument("--now", help="ISO 8601 timestamp for deterministic use and tests.")
     arguments = parser.parse_args()
@@ -210,7 +214,7 @@ def main() -> int:
     if now is None:
         parser.error("--now must be ISO 8601")
     try:
-        print(json.dumps(observe(arguments.tasks_dir, arguments.runtime_dir, now, arguments.reserve), sort_keys=True))
+        print(json.dumps(observe(arguments.tasks_dir, now, arguments.reserve), sort_keys=True))
     except LockUnavailable:
         print(json.dumps({"lock_unavailable": True}))
         return 2
