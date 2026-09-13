@@ -32,7 +32,7 @@ TSは各Cycleの結果を同じチャットへ、候補がある場合だけ行�
 
 報告対象は次のとおりである。
 
-- 依存解消済み`READY`のStart候補（Task ID、Taskの推奨Model／Reasoning）。起動中のEngineering Agentは最大2件で、先行候補の`CLAIMED`確認前に次の予約を報告しない。
+- 依存解消済み`READY`のStart候補（Task ID、Taskの推奨Model／Reasoning）。TS Roleはこの候補を根拠に、対象Taskの推奨Model／ReasoningでEngineering Agentを別途自動起動できる。起動中のEngineering Agentは最大2件で、先行候補の`CLAIMED`確認前に次の予約を報告しない。
 - `GUI_REVIEW`の報告候補。TSはProduct Ownerへ知らせるだけで、Reviewや修正を予約・実行しない。
 - 非GUIの`ACCEPTANCE_REVIEW`のReview候補（Task ID + Task記録の`Review Main Revision`または`Task Review Revision`）。同じ組合せは一度だけ予約する。
 - `BLOCKED`、依存不整合、受入れ待ち、45分以上更新されない`CLAIMED`／`IMPLEMENTING`、Revision不足などの通知候補。
@@ -41,7 +41,7 @@ TSは各Cycleの結果を同じチャットへ、候補がある場合だけ行�
 
 ## Actionの境界
 
-Start候補は、依存がすべて`DONE`であり、設定値がhelperの許可リストに適合する`READY`だけである。TSは候補を予約・報告するだけで、Engineering Agentを実際に起動したり、Taskを`CLAIMED`へ遷移させたりしない。先行Start予約の`CLAIMED`確認を観測してから、次の候補を扱う。
+Start候補は、依存がすべて`DONE`であり、設定値がhelperの許可リストに適合する`READY`だけである。helperは候補と予約情報を返すだけで、Agentを起動しない。TS Roleはhelperの結果を受けて、対象Taskの推奨Model／ReasoningでEngineering Agentを別途自動起動できるが、Taskを直接`CLAIMED`へ遷移させない。起動中は最大2件とし、先行Start予約の`CLAIMED`確認を観測してから次の候補を扱う。
 
 Review候補は、非GUI`ACCEPTANCE_REVIEW`に限る。TSまたはReview AgentはReviewを行えるが、Product Ownerの最終受入れを代行しない。Product Ownerが明示的に受入れた後だけ、新規Engineering Agentが受入れ結果をTaskへ記録し、必要なlocal main統合確認を経て`DONE`へ遷移させる。`GUI_REVIEW`は報告のみである。
 
