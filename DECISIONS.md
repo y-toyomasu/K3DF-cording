@@ -991,3 +991,32 @@ Codex起動時に指定したModel／Reasoningと、実行環境から独立に�
 ### Verification
 
 後続Taskで、記録契約の静的整合、および合成Hook入力による許可項目・禁止項目・保持上限・失敗時非阻害・Task Sentinel起動SubAgentへの同一適用を検証する。
+
+## D-00034: K3Ops Story Index safe display
+
+- Status: `Accepted`
+- Date: `2026-09-14`
+- Source: `AGENTS.md` Stories節、Product Owner承認済みDesign
+
+### Context
+
+Product OwnerとDesign Agentは、Task実装・進捗とは分離したStoryの運用状況を確認する必要がある。K3Opsは既存Dashboardを維持したまま、その表示をStory Indexの最小限の公開情報だけに限定し、個別Story本文や管理Repositoryの他の情報源を読ませない。
+
+### Decision
+
+- K3OpsのStory Sourceは`stories/INDEX.md`だけとする。ComposeはこのFileをread-only単一File mountし、アプリは`K3OPS_STORIES_INDEX_PATH`で指定されたPathだけを読む。個別`S-*.md`、Workspace全体、`.git`、`repositories/`、正本文書およびSecretをmount・探索・解析しない。
+- Story Indexは通常UTF-8 Fileだけを最大64 KiB、最大100件まで読む。symlink、DirectoryおよびSpecial fileは拒否する。許可形式は固定見出し`# Story Index`と、`Story | Status | Topic | Last Updated | Resume From`の5列Markdown Tableだけとする。
+- Story IDは重複しない`S-`＋5桁数字、Statusは`ACTIVE`、`PAUSED`、`DONE`、Last Updatedは実在する`YYYY-MM-DD`に限定する。Topicは160文字、Resume Fromは320文字までとし、行内改行と`|`を許可しない。不正な一行は部分表示せず、Index全体を安全な空表示にする。
+- 欠落、不正File種別、symlink、サイズ超過、UTF-8不正、header不正、row不正、ID重複および件数超過は、それぞれ`STORIES_MISSING`、`STORIES_NOT_REGULAR`、`STORIES_SYMLINK`、`STORIES_TOO_LARGE`、`STORIES_UTF8`、`STORIES_HEADER`、`STORIES_ROW`、`STORIES_DUPLICATE_ID`、`STORIES_LIMIT`としてwarning化する。
+- `/api/dashboard`は常に`stories`、`story_summary`（`total`／`active`／`paused`／`done`）および`story_warnings`を返す。UIは既存Tasks表の後、Footer前に`Stories`、Status別件数と`Story / Status / Topic / Last Updated / Resume From` Tableを置く。並び順は`ACTIVE`、`PAUSED`、`DONE`、同一Status内はLast Updatedの新しい順とする。
+- 正常な0件は「Storyはありません」と表示する。異常時は既存Dashboardを維持し、warningと空表示にする。Story Filterは初期実装に含めず、狭幅では既存Task Tableと同じ横スクロール方式を使う。既存の60秒更新および画面復帰時更新はStory Dataにも適用し、`/health`のliveness意味論は変更しない。
+- K3Ops READMEは、Story Indexのread-only単一File mount、表示範囲、非表示範囲および異常時の安全な扱いを説明する。`stories/INDEX.md`、個別Story本文、Task実体、`AGENTS.md`、RoadmapおよびProduct Ownerのローカル設定は変更しない。
+
+### Consequences
+
+- 後続の単一K3Ops実装Taskで、Parser、API、Compose、Dashboard UI、READMEおよび自動検証を実装する。1280pxと狭幅のGUI確認を要する。
+- K3Opsの既存Dashboardおよび`/health`のliveness契約は維持する。K3Opsが読める管理Repository情報は既存3 sourceとStory Index単一Fileに限られる。
+
+### Verification
+
+後続TaskでParser、API、Compose設定、既存Dashboard回帰、各warning時の安全な空表示を自動検証する。1280pxおよび狭幅でStories表示と既存Task Table相当の横スクロールを確認する。
