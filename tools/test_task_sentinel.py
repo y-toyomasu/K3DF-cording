@@ -101,7 +101,7 @@ class TaskSentinelTests(unittest.TestCase):
         self.assertNotIn("# Task", text); self.assertNotIn(str(self.root), text)
 
     def test_invalid_model_and_reasoning_never_leave_task_metadata(self):
-        unsafe = r"C:\Users\operator\token-value"
+        unsafe = "C:" + chr(92) + "Users" + chr(92) + "operator" + chr(92) + "token-value"
         self.write("T-00030", task("T-00030", "READY", model=unsafe, reasoning="secret-value"))
         result = observe(self.tasks, NOW, True)
         self.assertEqual(result["start_candidates"], [])
@@ -120,6 +120,14 @@ class TaskSentinelTests(unittest.TestCase):
         self.assertIn({"kind": "dependency_inconsistent", "task_id": "T-00041"}, notifications)
         self.assertIn({"kind": "blocked", "task_id": "T-00042"}, notifications)
         self.assertNotIn({"kind": "acceptance_waiting", "task_id": "T-00041"}, notifications)
+
+    def test_dependency_inconsistent_acceptance_review_returns_notification_only(self):
+        self.write("T-00043", task("T-00043", "ACCEPTANCE_REVIEW", "T-09999", revision="e" * 40))
+        result = observe(self.tasks, NOW, True)
+        self.assertEqual(result["notification_candidates"], [{"kind": "dependency_inconsistent", "task_id": "T-00043"}])
+        self.assertEqual(result["review_candidates"], [])
+        self.assertEqual(result["start_candidates"], [])
+        self.assertEqual(result["report_candidates"], [])
 
     def test_runtime_dir_is_fixed_and_cli_rejects_override(self):
         self.assertEqual(task_sentinel.RUNTIME_DIR, self.runtime)

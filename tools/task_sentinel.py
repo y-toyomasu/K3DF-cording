@@ -168,7 +168,7 @@ def observe(tasks_dir: Path, now: datetime, reserve: bool = False) -> dict:
                     changed = True
             if status == "GUI_REVIEW":
                 result["report_candidates"].append({"kind": "gui_review", "task_id": task_id})
-            if status == "ACCEPTANCE_REVIEW" and task["classification"] == "non-GUI":
+            if status == "ACCEPTANCE_REVIEW" and task["classification"] == "non-GUI" and not unresolved_dependencies:
                 if not SAFE_REVISION.fullmatch(revision):
                     result["notification_candidates"].append({"kind": "missing_review_revision", "task_id": task_id})
                 else:
