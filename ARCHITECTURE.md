@@ -18,7 +18,8 @@ K3DFのCompose構成では、次のサービスが定義されている。
 | Component | Confirmed responsibility |
 | --- | --- |
 | `web` | SQLiteデータを使うFlaskアプリケーション。コンテナ内ポート8080で動作する。 |
-| `nginx` | `web` と `defender` に依存するリバースプロキシ。ホストの80番ポートを公開し、Nginxログをホスト側へ保存する。 |
+| `challenge-next-ap1` | AP-01専用のNext.js Challenge Runtime。コンテナ内ポート3000だけを公開し、ホストPortは公開しない。 |
+| `nginx` | `web`、`defender`、`referee`および`challenge-next-ap1`に依存するリバースプロキシ。ホストの80番ポートを公開し、Nginxログをホスト側へ保存する。 |
 | `defender` | アクセスログ、スキャナー結果、アクション結果を収集し、状態を `state/` へ保存する防御Agent。コンテナ内ポート8090を公開する。 |
 | `dashboard` | Webのヘルスチェック、Nginxログ、Defenderが保存した状態を読み取り専用で表示する。ホストの8888番ポートを公開する。 |
 | `scanner` | Composeサービスではなく、許可されたローカル環境に対して実行するPythonスクリプト。 |
@@ -29,6 +30,7 @@ K3DFのCompose構成では、次のサービスが定義されている。
 - `nginx` は `logs/nginx/` へログを保存する。
 - `defender` はNginxログを読み取り専用で読み、`state/` に状態・イベントを保存する。
 - `dashboard` はNginxログと `state/` を読み取り専用で参照し、DefenderのPythonモジュールをimportしない。
+- `challenge-next-ap1` はFlag 1の外部named volumeだけをread-onlyでmountし、Flag 2/3、Referee state、Docker socketおよびHost mountを持たない。
 
 ## A-00004: K3AT service structure
 
@@ -82,6 +84,12 @@ HTTP HeaderとJSON／Formの値は`literal`または`credential_ref`を明示し
 K3DFはNginxから限定されたversioned APIだけをproxyする独立`referee` Serviceを持つ。RefereeはWeb、Defender、Dashboardの内部Moduleをimportせず、read-onlyでmountされたRun ID、Run TokenおよびFlag 1〜3の原本Fileを起動時に検査する。raw candidateはProcess Memory内でconstant-time比較し、受理済みFlag ID、件数、勝利、submission budgetだけを独自の原子的stateへ保存する。
 
 Flag定義Manifestは値を含まず、runtime ArtifactはGit管理外である。Refereeは順不同の提出、重複非加算、3件受理時の勝利を扱う。ChallengeへのFlag配置、Hint本文およびPi間のSecret自動配送は現行構成に含まれない。
+
+## A-00011: K3DF AP-01 Next.js ingress and Flag 1 boundary
+
+`challenge-next-ap1` は`/ap1/`だけから到達する独立したNext.js Runtimeである。NginxはこのRouteへDefender認可を適用せず、`x-middleware-subrequest`を値を変更せずにforwardする。一方、`/ap1/`外では当該Headerを明示的に除去するため、AP-01の意図的なMiddleware認可迂回特性は当該Routeに限定される。
+
+Runtimeはnon-rootで、Capabilityをdropし、`no-new-privileges`を有効にする。RuntimeにはFlag 1のread-only volumeだけが接続され、外部Port、Flag 2/3、Referee state、Docker socketおよびHost mountはない。通常RequestはMiddlewareで拒否され、指定されたRequest特性だけが保護RouteとFlag 1 Consumerへ到達する。Flag値、配置および実行時ArtifactはGit、Architecture recordおよび通常の運用出力へ保存しない。
 
 ## A-00008: K3AT Strategy Brief
 
