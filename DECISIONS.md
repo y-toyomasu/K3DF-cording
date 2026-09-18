@@ -939,14 +939,16 @@ T-00060でRequirement、DecisionおよびProduct Roadmapの整合を確認する
 
 ### Context
 
-K3ATの探索実績を、K3DF Capability Graph、Strategy Brief、CTF Ground TruthまたはChallengeの正解経路と混同せず、Evidenceに基づくHost／Service／Resource階層として表示する必要がある。Plannerの提案だけを実績として扱わず、CredentialとSessionが実行済み経路でどのServiceと関係するかを確認可能にする。
+K3ATの探索実績とKimiの未実行仮説を、K3DF Capability Graph、Strategy Brief、CTF Ground TruthまたはChallengeの正解経路と混同せず、Host／Service／Resource階層として同じMapに表示する必要がある。未実行仮説は実行事実と明確に区別し、仮説の記録が既存のTool安全Policyを弱めないようにする。CredentialとSessionが実行済み経路でどのServiceと関係するかも確認可能にする。
 
 ### Decision
 
-- Graphの入力は実行済みTool、Policyによる拒否、実行失敗およびSystemがEvidenceから確認した成果だけとする。KimiはNode、Edge、Statusまたは因果関係を確定しない。
+- GraphはSystemが記録した実行事実と、Kimiが発行した未実行仮説を同じ`observed_attack_path` Mapへ入力する。Nodeは共通IDの`NODE-...`、Connectionは共通IDの`CONN-...`を使用する。Kimiが`CONN-...`を発行し、K3ATはID採番または因果関係の妥当性を審査しない。
+- `incomplete`はKimiの未実行仮説だけに使用し、破線・薄色・仮説Labelで実行事実から区別する。`confirmed`、`executed`、`blocked`および`failed`はSystemが記録した実行事実だけに使用する。Connectionは同一IDのまま実行結果のStatusへ更新し、Run終了時に閉じる。Connection、CredentialおよびSessionを次Runへ持ち越さない。
+- 仮説Connectionの記録は実行権限を与えない。既存Toolが強制するTarget、Port、Credential、Session、Budget等の安全Policyを維持する。
 - Graph開始Nodeは論理的なK3AT Host（自ホスト）とし、実Hostname、IP、Host固有Pathまたは管理情報を表示しない。階層はHost → Service → Resource／Credential／Session／Objectiveとする。Credentialは発見元Service、Sessionは接続先Serviceとの関係が分かる位置に置く。
-- Tool ActionはNodeではなくEdgeとし、少なくとも`attempted_from`、`produced`、`used`、`continued_to`を扱う。単なる時系列を因果関係にしない。Statusは`confirmed`、`executed`、`blocked`、`failed`、`incomplete`とする。
-- 既存`attack_path`との互換を維持し、新たに`observed_attack_path`を定義する。正規Dataは座標、選択状態または表示方向を保存しない。Node上限は128、Edge上限は256、各要素のEvidence ID上限は8とし、切捨てはSummaryへ記録する。
+- Tool ActionはNodeではなくConnectionとし、少なくとも`attempted_from`、`produced`、`used`、`continued_to`を扱う。単なる時系列を因果関係にしない。
+- 既存`attack_path`との互換を維持し、新たに`observed_attack_path`を定義する。正規Dataは座標、選択状態または表示方向を保存しない。Node上限は128、Connection上限は256、各要素のEvidence ID上限は8とし、切捨てはSummaryへ記録する。
 - Dashboard用Run Recordに限り、Credentialは秘匿しない。Username、PasswordおよびCookieは詳細表示で確認・コピー可能とし、TokenはNodeにField名、種類およびLabelを示し、詳細で生値を展開・コピー可能とする。これは`R-00042`および`D-00019`の永続状態・Dashboard非公開部分を置換する。生CredentialをKimiのPlanner入力または通常Tool引数へ渡さず、Credential IDによるTool利用は維持する。Git管理文書、Task、Source Code例、Test結果またはCommitへ実Credential値を記録しない。
 - Dashboardはprivate LAN上で認証なし閲覧可能であり、到達できる利用者がCredentialを閲覧できる運用上の帰結を明記する。
 - Dashboard最上段にObserved Attack Path Mapを置く。表示は横方向だけとし、既定は右から左、自ホストは最右端とする。右から左／左から右を切替可能とし、方向選択はlocalStorageへ保存できる。狭幅でも縦表示へ変換せず、Pan／Scroll、ZoomおよびFitを提供する。
@@ -955,7 +957,7 @@ K3ATの探索実績を、K3DF Capability Graph、Strategy Brief、CTF Ground Tru
 
 ### Consequences
 
-- System側のAgent State／EvidenceからのGraph導出、Run Snapshot保存、Dashboard Compound Graph、詳細Panel、Filter、方向切替、Pan／Zoom／FitおよびCross-run Reviewは後続の独立Taskで扱う。
+- Node／Connection Data Contract、Kimi発行の仮説Connection記録、Tool／Evidence／Credential／Session／Objective結合とRun Snapshot、Dashboard Map MVP、Node／Connection詳細とRun閲覧は後続の独立Taskで扱う。
 - K3DF Capability Graph、Strategy Brief、CTF Ground TruthおよびChallengeの正解経路は本Graphに統合しない。
 
 ### Verification
