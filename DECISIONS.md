@@ -769,11 +769,13 @@ Tool引数およびProtocol設定からHost、IPまたはURLを指定・上書�
 
 - Status: `Accepted`
 - Date: `2026-09-07`
-- Source: `R-00053`、`D-00016`、`D-00019`、`D-00023`、`D-00024`、Product Owner承認済みDesign
+- Source: `R-00053`、`D-00016`、`D-00019`、`D-00023`、`D-00024`、CVE-2025-29927公式GitHub Advisory `GHSA-f82v-jwr5-mffw`、`@next/swc-linux-arm-gnueabihf`公開情報、Product Owner承認済みDesign
 
 ### Decision
 
 - AP-01はNext.js CVE-2025-29927の隔離再現とする。公開PoCは参照元と対象依存版を固定した検証に使用し、通常実行時に外部取得しない。Flag 1専用ConsumerだけがFlag 1 Volumeをread-onlyで参照する。
+- AP-01はnative `linux/arm/v7`でBuild・実行する。Next.js `13.5.6`はnative armv7で`@next/swc-linux-arm-gnueabihf@13.5.6`を必要とするが、当該Packageは公開されておらず、`next build`時の取得は404となる。この事象はFirewall解放後にも再現する依存配布上の非互換であり、AP-01 Runtimeの外向き通信許可を意味しない。Next.jsはCVE-2025-29927公式GitHub Advisoryの影響範囲内である`13.2.4`へ固定し、Base ImageはAlpineからglibc系Debian系Node Imageへ変更する。Base Image digestとpackage lockは、native armv7での依存導入、production buildおよびRuntime起動が成功した実装結果に基づいて確定し、未検証のdigestは記録しない。Buildは`npm ci`後にNext executableの存在を確認し、存在しない不完全な依存導入を直ちに失敗として扱う。
+- AP-01のnative armv7対応ではamd64 emulation、HostへのQEMU／binfmt導入およびCVE-inspired実装への置換を採用しない。通常Requestの拒否、対象Headerによる迂回、Flag 1 Consumerへの到達、Container／Flag境界の検証を維持する。
 - AP-02は単一のChallenge DBだけを対象にするCVE-inspired SQLiとし、Flag原本をDBに置かない。成功時に得られる認証素材はRun-scoped Credential Store経由でChallenge SSHへ使う。
 - AP-03はSessionに束縛された限定Challenge操作で疑似`admin`、内部Asset、Collectionおよび固定Exfiltrationを表現する。一般的なShellやForwardingは将来も導入しない。
 - 新しいSession Action Toolおよび内部Assetは別の設計・実装Taskで扱い、現在の`ssh.session.open`／`close`だけでAP-03成立を主張しない。
@@ -784,6 +786,7 @@ Tool引数およびProtocol設定からHost、IPまたはURLを指定・上書�
 - 実在CVEの隔離再現とCVE-inspired実装を明確に区別する。
 - Capabilityは実行済みEvidenceから観測し、正解経路、Flag値およびFlag配置をK3ATへ事前提供しない。
 - AP-01〜AP-03の実装、公開PoC固定検証、Session ActionおよびArchitecture Verificationは後続の独立Taskで扱う。
+- AP-01のRuntime是正は、package manifest／lockfile、glibc系Debian Node Base Image、Next executable検査、最小Runtime TestおよびREADMEだけを対象とし、native armv7実機での依存導入、production buildおよびRuntime起動をProduct Owner Validationとして確認する。Compose／Ingress統合再検証は別Taskで行い、Docker Desktop上の代替Imageによる検証はnative armv7 Build成功の根拠としない。
 
 ## D-00026: Simplified Common-target SSH Registry
 
