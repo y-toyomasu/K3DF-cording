@@ -2,13 +2,17 @@
 
 ## A-00001: Workspace structure
 
-`K3DF-local` 直下には、相互に独立したGitリポジトリが3つ存在する。ワークスペース全体を統括する既存のGitリポジトリは確認できない。
+`K3DF-local` は開発運用と正本を管理するGitリポジトリである。Product Repositoryは `repositories/` 配下で相互に独立して配置される。
 
 ```text
 K3DF-local/
-├── K3DF/                         K3 Defender Lab
-├── K3AT/                          attacker-side component
-└── K3Defnder-K3Atacker-infra/     Raspberry Pi setup scripts
+├── AGENTS.md                      開発運用の最上位ルール
+├── ARCHITECTURE.md                確認済み現行構成の記録
+├── DECISIONS.md                   基本設計判断の正本
+└── repositories/
+    ├── K3DF/                      K3 Defender Lab
+    ├── K3AT/                      attacker-side component
+    └── K3Defnder-K3Atacker-infra/ Raspberry Pi setup scripts
 ```
 
 ## A-00002: K3DF service structure
@@ -20,6 +24,7 @@ K3DFのCompose構成では、次のサービスが定義されている。
 | `web` | SQLiteデータを使うFlaskアプリケーション。コンテナ内ポート8080で動作する。 |
 | `challenge-next-ap1` | AP-01専用のNext.js Challenge Runtime。コンテナ内ポート3000だけを公開し、ホストPortは公開しない。 |
 | `nginx` | `web`、`defender`、`referee`および`challenge-next-ap1`に依存するリバースプロキシ。ホストの80番ポートを公開し、Nginxログをホスト側へ保存する。 |
+| `referee` | Nginxから限定されたReferee APIを提供する独立Service。コンテナ内ポート8091を公開し、Flag 1〜3をread-onlyで参照して独自state volumeへ結果を保存する。 |
 | `defender` | アクセスログ、スキャナー結果、アクション結果を収集し、状態を `state/` へ保存する防御Agent。コンテナ内ポート8090を公開する。 |
 | `dashboard` | Webのヘルスチェック、Nginxログ、Defenderが保存した状態を読み取り専用で表示する。ホストの8888番ポートを公開する。 |
 | `scanner` | Composeサービスではなく、許可されたローカル環境に対して実行するPythonスクリプト。 |
@@ -41,21 +46,17 @@ K3ATのCompose構成には、次がある。
 | `k3-agent` | Kimi K3によるシナリオ生成、ローカルポリシー検証、許可済みHTTPリクエスト、状態保存を行う。 |
 | `dashboard` | `k3-agent` と共有する状態ボリュームを読み取り専用で表示する。ホストの `0.0.0.0:8888` を公開し、コンテナ内Port 8888へ転送する。 |
 
-`k3-agent` は `latest.json` の現在スナップショットと `events.ndjson` の追記イベントを共有ボリュームへ保存する。対象は `K3DF_BASE_URL` で指定された正確なscheme・host・port境界に制限される。
+`k3-agent` は `latest.json` の現在スナップショットと `events.ndjson` の追記イベントを共有ボリュームへ保存する。HTTP／TCP対象は、起動時に指定する共通Challenge IPv4へ固定される。
 
 DashboardはK3ATホストのprivate IPを通じて同一private LAN上の別端末から閲覧できる。共有状態を読み取り専用で表示するだけであり、調査の開始、停止、制御または状態の書込みを行わない。
 
 ## A-00005: K3AT target and policy boundaries
 
-`k3-agent` はProcess開始時に `K3AT_AUTHORIZED_TARGETS` を読み込み、scheme・hostname・portを正規化した不変のTarget Registryを生成する。HTTP/HTTPSの未指定Portは80/443として扱い、重複Endpointは一件へ正規化する。設定が未指定または空の場合は、`K3DF_BASE_URL` を唯一の許可HTTP Endpointとして使用する。設定されている場合は、`K3DF_BASE_URL` がRegistryに含まれなければNetwork Request前にConfiguration Errorとして終了する。
+`k3-agent` はProcess開始時に `K3DF_BASE_URL` からIPv4だけを受け取り、唯一のHTTP Targetとして `http://<IPv4>` を構成する。URL、hostname、port、path、query、認証情報およびIPv6はTarget入力として受け付けない。非空の `K3AT_AUTHORIZED_TARGETS` は未対応として接続前に拒否する。生成済みTarget PolicyはRun中に環境を再読込せず、HTTP Requestは同一originの `/` から始まる相対Pathだけを受け付ける。
 
-生成済みTarget PolicyはLocal PolicyとHTTP Executorで共有し、Run中にenvを再読込しない。HTTP Requestは `K3DF_BASE_URL` 配下の `/` から始まるChallenge Pathへ限定され、別scheme・host・port・Originおよびprotocol-relative URLを拒否する。Registry定義はuserinfo、query、fragment、空でないpathを拒否する。
+`k3-agent` はProcess開始時に `K3AT_AUTHORIZED_TCP_TARGETS` を一度だけ読み込み、不変のTCP Target Registryを生成する。各TCP TargetはTarget IDと許可Portだけを持ち、実接続先は共通Challenge IPv4に固定される。hostname、個別IPv4およびTCP Host指定は設定・Tool引数ともに持たず、名前解決は行わない。
 
-HTTP Targetは入力IPv4から構成する`http://<IPv4>`だけを許可する。未登録のHost OS Service、Management Port、別LAN Addressおよび別Originは許可しない。SSHは別の起動時固定Registryで、`target_id`と整数またはPort Rangeだけを受け取り、共通Challenge IPv4、展開済み許可Port集合および`K3DF_BASE_URL`から導出したHTTP Exact Originへ拘束する。SSH Registry、TCP RegistryまたはTool引数からHost、IP、URL、個別Originを指定できず、Host Key設定、TOFUおよびHost Key検証は実装しない。
-
-`k3-agent` はProcess開始時に `K3AT_AUTHORIZED_TCP_TARGETS` も一度だけ読み込み、不変のTCP Target Registryを生成する。各TCP TargetはTarget ID、hostnameまたはIPv4、許可Portを持ち、Target IDは最大16件、許可PortはTargetごとに最大4096件へ正規化する。hostnameは起動時に単一IPv4へ解決・固定する。解決失敗、曖昧な解決、loopback、link-local、multicast、unspecified addressおよび無効な設定はfail-closedとする。SSHはこのTCP Registryを参照せず、共通Challenge IPv4へ独立したSSH Port Registryで接続する。
-
-TCP Target RegistryはHTTP Exact Origin Policyとは別の接続境界である。`tcp.scan` は登録済みTarget IDと許可Portだけを使い、未登録Target、許可範囲外PortまたはTCP Target未設定をSocket接続前に拒否する。Management Network、Host OS Service、Host filesystemおよびDocker socketを接続対象に含めない。
+`tcp.scan` は登録済みTarget IDと許可Portだけを使い、未登録Target、許可範囲外PortまたはTCP Target未設定をSocket接続前に拒否する。HTTP／TCPの実接続先は同じ共通Challenge IPv4であり、Management Network、Host OS Service、Host filesystemおよびDocker socketを接続対象に含めない。
 
 ## A-00007: K3AT Tool Registry
 
@@ -81,7 +82,7 @@ HTTP HeaderとJSON／Formの値は`literal`または`credential_ref`を明示し
 
 ## A-00010: K3DF CTF Referee
 
-K3DFはNginxから限定されたversioned APIだけをproxyする独立`referee` Serviceを持つ。RefereeはWeb、Defender、Dashboardの内部Moduleをimportせず、read-onlyでmountされたRun ID、Run TokenおよびFlag 1〜3の原本Fileを起動時に検査する。raw candidateはProcess Memory内でconstant-time比較し、受理済みFlag ID、件数、勝利、submission budgetだけを独自の原子的stateへ保存する。
+K3DFはNginxから限定されたversioned APIだけをproxyする独立`referee` Serviceを持つ。RefereeはWeb、Defender、Dashboardの内部Moduleをimportせず、read-onlyでmountされたFlag 1〜3の原本Fileを参照する。K3AT Referee Clientは起動時にReferee originとdemo seedを設定として固定し、raw candidateはProcess Memory内で比較する。受理済みFlag ID、件数、勝利およびsubmission budgetだけを独自のstateへ保存する。Run IDまたはRun Token Secret Fileは現行のReferee設定・認証契約に含まれない。
 
 Flag定義Manifestは値を含まず、runtime ArtifactはGit管理外である。Refereeは順不同の提出、重複非加算、3件受理時の勝利を扱う。ChallengeへのFlag配置、Hint本文およびPi間のSecret自動配送は現行構成に含まれない。
 
@@ -113,4 +114,4 @@ Nginx request EvidenceとScanner findingは浅いNodeへ反映できる。confir
 
 ## Architecture record policy
 
-基本設計レベルの変更は `docs/DECISIONS.md` に、変更内容と採用理由を記録する。未確認の構成や将来の設計は、この文書に事実として追加しない。
+基本設計レベルの変更は `DECISIONS.md` に、変更内容と採用理由を記録する。未確認の構成や将来の設計は、この文書に事実として追加しない。
