@@ -50,6 +50,14 @@ K3ATのCompose構成には、次がある。
 
 DashboardはK3ATホストのprivate IPを通じて同一private LAN上の別端末から閲覧できる。共有状態を読み取り専用で表示するだけであり、調査の開始、停止、制御または状態の書込みを行わない。
 
+## A-00012: K3AT Agent State／Run Record boundary
+
+K3ATのAgent Stateは既存の`attack_path`とは別に、同一Run内で観測された経路を表す`observed_attack_path`をRun Recordと最終Summaryへ含める。正規DataはNodeとConnection、および件数・切捨てを示すSummaryからなり、表示の座標、選択状態、表示方向は保存しない。Plannerへ渡すAgent Stateからは`observed_attack_path`を除外するため、当該DataはToolの選択、実行権限または既存Planner契約を変更しない。
+
+Nodeは`NODE-...` ID、種別、Status、Sourceおよび同一Runに存在するcanonicalなEvidence ID参照を持つ。Connectionは`CONN-...` ID、始点・終点Node ID、Action、Status、Sourceおよび同じEvidence参照を持つ。Node種別はhost、service、resource、credential、session、objectiveであり、Actionは`attempted_from`、`produced`、`used`、`continued_to`である。`incomplete`はKimiによる未実行仮説だけに、`confirmed`、`executed`、`blocked`、`failed`はSystemが記録した実行事実だけに使う。
+
+1 Runあたりの上限はNode 128件、Connection 256件、各要素のEvidence ID 8件である。上限を超える要素またはEvidence IDは保持せず、Summaryで切捨て件数を記録する。`observed_attack_path`は既存`attack_path`、Tool Policy、Credential Store、Session Store、Action Budgetおよび実行Target境界を置換または緩和しない。
+
 ## A-00005: K3AT target and policy boundaries
 
 `k3-agent` はProcess開始時に `K3DF_BASE_URL` からIPv4だけを受け取り、唯一のHTTP Targetとして `http://<IPv4>` を構成する。URL、hostname、port、path、query、認証情報およびIPv6はTarget入力として受け付けない。非空の `K3AT_AUTHORIZED_TARGETS` は未対応として接続前に拒否する。生成済みTarget PolicyはRun中に環境を再読込せず、HTTP Requestは同一originの `/` から始まる相対Pathだけを受け付ける。
